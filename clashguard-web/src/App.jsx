@@ -76,15 +76,20 @@ const Shell = ({ children }) => {
         <div className="pointer-events-none absolute -right-16 top-24 h-36 w-36 rounded-full bg-signal/20 blur-2xl animate-pulse-slow"></div>
         <div className="pointer-events-none absolute -left-20 bottom-12 h-44 w-44 rounded-full bg-blue-400/25 blur-2xl animate-pulse-slow"></div>
         <header className="mx-auto flex w-full max-w-7xl items-center justify-between border-t-4 border-signal pt-4 sm:pt-5">
-          <button
-            aria-label="About Arsalan Mir"
-            onClick={() => setShowAbout(true)}
-            className="grid h-11 w-11 place-content-center rounded-md border border-signal/40 bg-white/40 hover:bg-signal/10"
-          >
-            <span className="mb-1 block h-0.5 w-5 bg-signal"></span>
-            <span className="mb-1 block h-0.5 w-5 bg-signal"></span>
-            <span className="block h-0.5 w-5 bg-signal"></span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              aria-label="About Arsalan Mir"
+              onClick={() => setShowAbout(true)}
+              className="grid h-11 w-11 place-content-center rounded-md border border-signal/40 bg-white/40 hover:bg-signal/10"
+            >
+              <span className="mb-1 block h-0.5 w-5 bg-signal"></span>
+              <span className="mb-1 block h-0.5 w-5 bg-signal"></span>
+              <span className="block h-0.5 w-5 bg-signal"></span>
+            </button>
+            <button onClick={() => setShowAbout(true)} className={BTN_BASE}>
+              About Me
+            </button>
+          </div>
           <p className="text-[10px] tracking-[0.22em] text-signal sm:text-xs sm:tracking-[0.3em] md:text-sm">
             CLASHGUARD / SPRING 2026
           </p>
@@ -93,8 +98,14 @@ const Shell = ({ children }) => {
         <MobileBottomNav />
 
         {showAbout && (
-          <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-3 backdrop-blur-sm sm:p-4">
-            <div className="w-full max-w-xl rounded-2xl border border-signal/35 bg-white/95 p-5 shadow-[0_18px_40px_rgba(20,20,20,0.25)]">
+          <div
+            className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-3 backdrop-blur-sm sm:p-4"
+            onClick={() => setShowAbout(false)}
+          >
+            <div
+              className="w-full max-w-xl rounded-2xl border border-signal/35 bg-white/95 p-5 shadow-[0_18px_40px_rgba(20,20,20,0.25)]"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-[0.24em] text-signal/80">About</p>
