@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ClashGuard</string>
+    <string name="title_activity_main">ClashGuard</string>
+    <string name="package_name">com.clashguard.app</string>
+    <string name="custom_url_scheme">com.clashguard.app</string>
+</resources>

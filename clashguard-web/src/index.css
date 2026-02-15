@@ -1,0 +1,66 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Bebas+Neue&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Bebas Neue", sans-serif;
+  --font-ui: "Space Grotesk", sans-serif;
+  --color-ash: #e3e2de;
+  --color-ink: #141414;
+  --color-signal: #ff3a20;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  background: radial-gradient(circle at 15% 10%, #f3c9c2 0%, transparent 40%),
+    radial-gradient(circle at 80% 80%, #d2e2ff 0%, transparent 36%), var(--color-ash);
+  color: var(--color-ink);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-slow {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+.animate-rise {
+  animation: rise 650ms ease forwards;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 4.5s ease-in-out infinite;
+}
+
+.themed-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.themed-scroll::-webkit-scrollbar {
+  display: none;
+}

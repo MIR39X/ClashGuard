@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ClashGuard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Staatliches&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="screen">
+      <div class="chrome-line"></div>
+      <header class="top">
+        <button class="menu-btn" aria-label="Open menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <p class="brand">CLASHGUARD</p>
+      </header>
+
+      <section class="hero">
+        <div class="left">
+          <h1>[01]_TIMETABLE<br />CLASH DETECTOR</h1>
+          <ul>
+            <li>Upload campus timetable file</li>
+            <li>Detect class-time overlaps</li>
+            <li>Filter by your section (e.g. BCY-6A)</li>
+            <li>Suggest better alternatives</li>
+          </ul>
+        </div>
+        <div class="right">
+          <p>
+            Built for FAST students who need fast clash checks. Upload one Excel file and start from your own
+            semester or selected classes.
+          </p>
+          <p>
+            First step now: upload your timetable sheet. Next screens will parse, detect and recommend conflict-free
+            options.
+          </p>
+        </div>
+      </section>
+
+      <section class="upload-panel">
+        <label for="fileInput" class="dropzone" id="dropzone">
+          <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" />
+          <span class="drop-title">Drop Excel Here or Click to Upload</span>
+          <span class="drop-sub">Accepted formats: .xlsx .xls .csv</span>
+        </label>
+        <div class="meta">
+          <p id="fileName">No file selected</p>
+          <button id="continueBtn" class="continue-btn" disabled>Continue</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="./script.js"></script>
+  </body>
+</html>

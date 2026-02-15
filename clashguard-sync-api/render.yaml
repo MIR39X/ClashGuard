@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: clashguard-sync-api
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SOURCE_DATA_API
+        value: https://server-timetable2.vercel.app
+      - key: SYNC_INTERVAL_MS
+        value: "900000"
+      - key: CORS_ORIGIN
+        value: "*"

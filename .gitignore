@@ -1,0 +1,31 @@
+# Node / frontend
+**/node_modules/
+**/dist/
+**/.vite/
+**/coverage/
+
+# Env files
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Logs
+**/*.log
+npm-debug.log*
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Capacitor / Android generated artifacts
+**/android/.gradle/
+**/android/**/build/
+**/android/local.properties
+**/android/captures/
+**/android/app/src/main/assets/public/
+
+# Test artifacts
+**/playwright-report/
+**/test-results/
