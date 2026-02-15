@@ -10,10 +10,11 @@ import {
   selectedEntriesFromCourses,
 } from './lib/schedule';
 
-const API_BASE =
+const API_BASE = (
   import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.VITE_API_BASE ||
-  'http://localhost:4000';
+  'https://clashguard.onrender.com'
+).replace(/\/$/, '');
 const DAY_SHORT = {
   All: 'All',
   Monday: 'Mon',
