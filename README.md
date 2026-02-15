@@ -118,6 +118,30 @@ npx cap sync android
 npx cap open android
 ```
 
+### Build APK (Release)
+
+From `clashguard-web/android/`:
+
+```bash
+gradlew assembleRelease
+```
+
+Release APK output:
+
+`clashguard-web/android/app/build/outputs/apk/release/app-release.apk`
+
+### Publish APK For Website Download
+
+The web app Download APK button points to:
+
+`https://github.com/MIR39X/ClashGuard/releases/latest/download/clashguard.apk`
+
+To make this work:
+
+1. Create a GitHub Release.
+2. Upload your APK asset and name it exactly `clashguard.apk`.
+3. Publish the release.
+
 ## License
 
 This project is currently private/proprietary unless you add a license file.

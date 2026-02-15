@@ -28,6 +28,7 @@ const DAY_SHORT = {
 const BTN_BASE =
   'rounded-lg border border-signal px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-signal transition hover:bg-signal hover:text-white disabled:cursor-not-allowed disabled:border-signal/30 disabled:text-signal/35';
 const ALT_LIMITS = ['5', '10', '20', 'all'];
+const APK_DOWNLOAD_URL = 'https://github.com/MIR39X/ClashGuard/releases/latest/download/clashguard.apk';
 const ABOUT_ME = {
   name: 'Arsalan Mir',
   bio: 'I am just a chill guy.',
@@ -90,9 +91,19 @@ const Shell = ({ children }) => {
               About Me
             </button>
           </div>
-          <p className="text-[10px] tracking-[0.22em] text-signal sm:text-xs sm:tracking-[0.3em] md:text-sm">
-            CLASHGUARD / SPRING 2026
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="hidden text-[10px] tracking-[0.22em] text-signal sm:block sm:text-xs sm:tracking-[0.3em] md:text-sm">
+              CLASHGUARD / SPRING 2026
+            </p>
+            <a
+              href={APK_DOWNLOAD_URL}
+              target="_blank"
+              rel="noreferrer"
+              className={BTN_BASE}
+            >
+              Download APK
+            </a>
+          </div>
         </header>
         {children}
         <MobileBottomNav />
