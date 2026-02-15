@@ -132,15 +132,15 @@ Release APK output:
 
 ### Publish APK For Website Download
 
-The web app Download APK button points to:
+The web app Download APK button serves:
 
-`https://github.com/MIR39X/ClashGuard/releases/latest/download/clashguard.apk`
+`/clashguard.apk`
 
-To make this work:
+So place the APK at:
 
-1. Create a GitHub Release.
-2. Upload your APK asset and name it exactly `clashguard.apk`.
-3. Publish the release.
+`clashguard-web/public/clashguard.apk`
+
+Then redeploy frontend.
 
 ## License
 

@@ -28,7 +28,7 @@ const DAY_SHORT = {
 const BTN_BASE =
   'rounded-lg border border-signal px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-signal transition hover:bg-signal hover:text-white disabled:cursor-not-allowed disabled:border-signal/30 disabled:text-signal/35';
 const ALT_LIMITS = ['5', '10', '20', 'all'];
-const APK_DOWNLOAD_URL = 'https://github.com/MIR39X/ClashGuard/releases/latest/download/clashguard.apk';
+const APK_DOWNLOAD_URL = '/clashguard.apk';
 const ABOUT_ME = {
   name: 'Arsalan Mir',
   bio: 'I am just a chill guy.',
