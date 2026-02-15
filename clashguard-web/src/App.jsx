@@ -31,7 +31,7 @@ const ALT_LIMITS = ['5', '10', '20', 'all'];
 const ABOUT_ME = {
   name: 'Arsalan Mir',
   bio: 'I am just a chill guy.',
-  linkedin: 'https://pk.linkedin.com/in/arsalan-mir-24a62328a',
+  linkedin: 'https://www.linkedin.com/in/arsalan-mir-24a62328a?utm_source=share_via&utm_content=profile&utm_medium=member_ios',
   github: 'https://github.com/MIR39X',
   email: 'arsalanmir735@gmail.com',
 };
@@ -139,7 +139,7 @@ const Shell = ({ children }) => {
                   href={`mailto:${ABOUT_ME.email}`}
                   className="rounded-lg border border-signal/30 bg-white px-3 py-2 text-sm font-semibold text-signal hover:bg-signal/10"
                 >
-                  {ABOUT_ME.email}
+                  Email Me
                 </a>
               </div>
             </div>
