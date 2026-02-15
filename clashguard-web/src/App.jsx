@@ -71,6 +71,11 @@ const MobileBottomNav = () => {
 
 const Shell = ({ children }) => {
   const [showAbout, setShowAbout] = useState(false);
+  const isNativeApp =
+    typeof window !== 'undefined' &&
+    !!window.Capacitor &&
+    typeof window.Capacitor.isNativePlatform === 'function' &&
+    window.Capacitor.isNativePlatform();
 
   return (
     <div className="relative min-h-screen overflow-hidden px-3 pb-20 pt-4 sm:px-5 sm:pb-6 sm:pt-6 md:px-8 lg:px-10">
@@ -95,14 +100,16 @@ const Shell = ({ children }) => {
             <p className="hidden text-[10px] tracking-[0.22em] text-signal sm:block sm:text-xs sm:tracking-[0.3em] md:text-sm">
               CLASHGUARD / SPRING 2026
             </p>
-            <a
-              href={APK_DOWNLOAD_URL}
-              target="_blank"
-              rel="noreferrer"
-              className={BTN_BASE}
-            >
-              Download APK
-            </a>
+            {!isNativeApp && (
+              <a
+                href={APK_DOWNLOAD_URL}
+                target="_blank"
+                rel="noreferrer"
+                className={BTN_BASE}
+              >
+                Download APK
+              </a>
+            )}
           </div>
         </header>
         {children}
