@@ -37,6 +37,72 @@ const ABOUT_ME = {
   email: 'arsalanmir735@gmail.com',
 };
 
+const createGradeComponent = () => ({
+  id: `cmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  name: '',
+  weight: '',
+  score: '',
+  total: '',
+});
+
+const toNumber = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : NaN;
+};
+
+const calculateCourseStats = (courseGrade) => {
+  const components = courseGrade?.components || [];
+  const targetPercent = toNumber(courseGrade?.targetPercent);
+  let totalWeight = 0;
+  let completedWeight = 0;
+  let achievedPoints = 0;
+
+  components.forEach((cmp) => {
+    const weight = toNumber(cmp.weight);
+    if (!Number.isFinite(weight) || weight <= 0) return;
+    totalWeight += weight;
+    const score = toNumber(cmp.score);
+    const total = toNumber(cmp.total);
+    if (Number.isFinite(score) && Number.isFinite(total) && total > 0) {
+      const ratio = Math.max(0, Math.min(1, score / total));
+      completedWeight += weight;
+      achievedPoints += weight * ratio;
+    }
+  });
+
+  const remainingWeight = Math.max(0, totalWeight - completedWeight);
+  const requiredAverage =
+    Number.isFinite(targetPercent) && remainingWeight > 0
+      ? ((targetPercent - achievedPoints) / remainingWeight) * 100
+      : NaN;
+
+  return {
+    totalWeight,
+    completedWeight,
+    remainingWeight,
+    achievedPoints,
+    targetPercent,
+    requiredAverage,
+    isImpossible: Number.isFinite(requiredAverage) && requiredAverage > 100,
+    alreadySafe: Number.isFinite(requiredAverage) && requiredAverage <= 0,
+  };
+};
+
+const percentToGpa = (percent) => {
+  if (!Number.isFinite(percent)) return 0;
+  if (percent >= 85) return 4.0;
+  if (percent >= 80) return 3.67;
+  if (percent >= 75) return 3.33;
+  if (percent >= 71) return 3.0;
+  if (percent >= 68) return 2.67;
+  if (percent >= 64) return 2.33;
+  if (percent >= 61) return 2.0;
+  if (percent >= 58) return 1.67;
+  if (percent >= 55) return 1.33;
+  if (percent >= 50) return 1.0;
+  return 0;
+};
+
 const MobileBottomNav = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -45,11 +111,12 @@ const MobileBottomNav = () => {
     { label: 'Timetable', path: '/timetable' },
     { label: 'Clashes', path: '/clashes' },
     { label: 'Alt', path: '/alternatives' },
+    { label: 'Grades', path: '/grades' },
   ];
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-signal/25 bg-white/95 p-2 backdrop-blur-sm sm:hidden">
-      <div className="grid grid-cols-4 gap-1">
+      <div className="grid grid-cols-5 gap-1">
         {items.map((item) => {
           const active = location.pathname === item.path;
           return (
@@ -274,7 +341,7 @@ const SelectPage = ({ sectionFilter, setSectionFilter, allClasses, setAllClasses
           </div>
 
           <div className="mt-3 rounded-xl border border-signal/30 bg-white/70 p-4">
-            <div className="grid gap-2 sm:grid-cols-2 sm:items-center">
+            <div className="grid gap-2 sm:grid-cols-3 sm:items-center">
               <button
                 onClick={() => setShowSelectedModal(true)}
                 disabled={selectedCourses.length === 0}
@@ -285,9 +352,16 @@ const SelectPage = ({ sectionFilter, setSectionFilter, allClasses, setAllClasses
               <button
                 onClick={() => navigate('/timetable')}
                 disabled={selectedCourses.length < 1}
-                className={`${BTN_BASE} py-3 text-sm sm:justify-self-end`}
+                className={`${BTN_BASE} py-3 text-sm`}
               >
                 View My Timetable
+              </button>
+              <button
+                onClick={() => navigate('/grades')}
+                disabled={selectedCourses.length < 1}
+                className={`${BTN_BASE} py-3 text-sm sm:justify-self-end`}
+              >
+                Grades
               </button>
             </div>
           </div>
@@ -414,6 +488,9 @@ const TimetablePage = ({ allClasses, selectedCourses }) => {
               <button onClick={() => navigate('/clashes')} className={BTN_BASE}>
                 Clash Report
               </button>
+              <button onClick={() => navigate('/grades')} className={BTN_BASE}>
+                Grades
+              </button>
               <button onClick={() => navigate('/alternatives')} className={BTN_BASE}>
                 Alternatives
               </button>
@@ -528,6 +605,9 @@ const ClashReportPage = ({ allClasses, selectedCourses }) => {
               [03]_CLASH REPORT
             </h1>
             <div className="grid w-full gap-2 sm:w-auto sm:grid-flow-col sm:auto-cols-max">
+              <button onClick={() => navigate('/grades')} className={BTN_BASE}>
+                Grades
+              </button>
               <button onClick={() => navigate('/alternatives')} className={BTN_BASE}>
                 Alternatives
               </button>
@@ -686,6 +766,9 @@ const AlternativesPage = ({ allClasses, selectedCourses, setSelectedCourses }) =
               [04]_ALTERNATIVES
             </h1>
             <div className="grid w-full gap-2 sm:w-auto sm:grid-flow-col sm:auto-cols-max">
+              <button onClick={() => navigate('/grades')} className={BTN_BASE}>
+                Grades
+              </button>
               <button onClick={() => navigate('/clashes')} className={BTN_BASE}>
                 Clash Report
               </button>
@@ -825,6 +908,198 @@ const AlternativesPage = ({ allClasses, selectedCourses, setSelectedCourses }) =
   );
 };
 
+const GradesPage = ({ selectedCourses, gradesData, setGradesData }) => {
+  const navigate = useNavigate();
+  const selectedByKey = useMemo(() => new Set(selectedCourses.map((c) => c.key)), [selectedCourses]);
+
+  const visibleCourses = useMemo(
+    () => selectedCourses.filter((course) => selectedByKey.has(course.key)),
+    [selectedByKey, selectedCourses],
+  );
+
+  const upsertCourseGrade = (courseKey, updater) => {
+    setGradesData((prev) => {
+      const current = prev[courseKey] || { targetPercent: '', components: [createGradeComponent()] };
+      return {
+        ...prev,
+        [courseKey]: updater(current),
+      };
+    });
+  };
+
+  const addComponent = (courseKey) => {
+    upsertCourseGrade(courseKey, (current) => ({
+      ...current,
+      components: [...(current.components || []), createGradeComponent()],
+    }));
+  };
+
+  const removeComponent = (courseKey, componentId) => {
+    upsertCourseGrade(courseKey, (current) => {
+      const next = (current.components || []).filter((c) => c.id !== componentId);
+      return {
+        ...current,
+        components: next.length > 0 ? next : [createGradeComponent()],
+      };
+    });
+  };
+
+  const updateComponent = (courseKey, componentId, field, value) => {
+    upsertCourseGrade(courseKey, (current) => ({
+      ...current,
+      components: (current.components || []).map((cmp) =>
+        cmp.id === componentId ? { ...cmp, [field]: value } : cmp,
+      ),
+    }));
+  };
+
+  const updateTarget = (courseKey, value) => {
+    upsertCourseGrade(courseKey, (current) => ({
+      ...current,
+      targetPercent: value,
+    }));
+  };
+
+  const termGpa = useMemo(() => {
+    if (visibleCourses.length === 0) return 0;
+    let weightedPoints = 0;
+    let credits = 0;
+    visibleCourses.forEach((course) => {
+      const courseGrade = gradesData[course.key] || {};
+      const stats = calculateCourseStats(courseGrade);
+      const target = stats.targetPercent;
+      if (!Number.isFinite(target)) return;
+      const creditHours = Math.max(1, Number(course.slots) || 1);
+      weightedPoints += percentToGpa(target) * creditHours;
+      credits += creditHours;
+    });
+    return credits > 0 ? weightedPoints / credits : 0;
+  }, [gradesData, visibleCourses]);
+
+  if (selectedCourses.length < 1) return <Navigate to="/" replace />;
+
+  return (
+    <Shell>
+      <main className="mx-auto w-full max-w-7xl pt-8 md:pt-12">
+        <section className="animate-rise rounded-2xl border border-signal/35 bg-white/65 p-6 backdrop-blur-sm md:p-8">
+          <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+            <h1 className="font-display text-signal text-[clamp(2.4rem,6vw,4.8rem)] leading-[0.9] tracking-wide">
+              [05]_GRADES
+            </h1>
+            <div className="grid w-full gap-2 sm:w-auto sm:grid-flow-col sm:auto-cols-max">
+              <button onClick={() => navigate('/timetable')} className={BTN_BASE}>
+                Timetable
+              </button>
+              <button onClick={() => navigate('/clashes')} className={BTN_BASE}>
+                Clash Report
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-3 rounded-xl border border-signal/30 bg-white/80 p-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-ink/65">Estimated Term GPA (from target %)</p>
+            <p className="mt-1 text-4xl font-semibold text-signal">{termGpa.toFixed(2)}</p>
+            <p className="mt-1 text-xs uppercase tracking-[0.14em] text-ink/60">
+              Set target % per selected course to compute this.
+            </p>
+          </div>
+
+          <div className="mt-4 grid gap-4">
+            {visibleCourses.map((course) => {
+              const courseGrade = gradesData[course.key] || { targetPercent: '', components: [createGradeComponent()] };
+              const stats = calculateCourseStats(courseGrade);
+              const components = courseGrade.components || [createGradeComponent()];
+              const weightMismatch = Math.abs(stats.totalWeight - 100) > 0.01;
+
+              return (
+                <article key={course.key} className="rounded-xl border border-signal/25 bg-white p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="text-xl font-semibold text-ink">{course.title}</p>
+                      <p className="text-xs uppercase text-ink/65">
+                        {course.code} | {course.section || 'N/A'} | Credit Hours: {course.slots || 1}
+                      </p>
+                    </div>
+                    <div className="w-full max-w-[220px]">
+                      <label className="text-[10px] uppercase tracking-[0.2em] text-ink/60">Target %</label>
+                      <input
+                        value={courseGrade.targetPercent ?? ''}
+                        onChange={(e) => updateTarget(course.key, e.target.value)}
+                        placeholder="e.g. 85"
+                        className="mt-1 w-full rounded-lg border border-signal/30 bg-white px-3 py-2 text-sm outline-none focus:border-signal"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid gap-2">
+                    {components.map((cmp) => (
+                      <div key={cmp.id} className="grid gap-2 rounded-lg border border-ink/15 bg-ash/60 p-2 sm:grid-cols-[1.2fr_0.6fr_0.6fr_0.6fr_auto]">
+                        <input
+                          value={cmp.name}
+                          onChange={(e) => updateComponent(course.key, cmp.id, 'name', e.target.value)}
+                          placeholder="Component (Mid / Quiz / Lab / Final)"
+                          className="rounded-md border border-ink/20 bg-white px-2 py-2 text-xs outline-none focus:border-signal"
+                        />
+                        <input
+                          value={cmp.weight}
+                          onChange={(e) => updateComponent(course.key, cmp.id, 'weight', e.target.value)}
+                          placeholder="Weight %"
+                          className="rounded-md border border-ink/20 bg-white px-2 py-2 text-xs outline-none focus:border-signal"
+                        />
+                        <input
+                          value={cmp.score}
+                          onChange={(e) => updateComponent(course.key, cmp.id, 'score', e.target.value)}
+                          placeholder="Score"
+                          className="rounded-md border border-ink/20 bg-white px-2 py-2 text-xs outline-none focus:border-signal"
+                        />
+                        <input
+                          value={cmp.total}
+                          onChange={(e) => updateComponent(course.key, cmp.id, 'total', e.target.value)}
+                          placeholder="Total"
+                          className="rounded-md border border-ink/20 bg-white px-2 py-2 text-xs outline-none focus:border-signal"
+                        />
+                        <button
+                          onClick={() => removeComponent(course.key, cmp.id)}
+                          className="rounded-md border border-signal/35 px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-signal hover:bg-signal hover:text-white"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    <button onClick={() => addComponent(course.key)} className={`${BTN_BASE} justify-self-start`}>
+                      Add Component
+                    </button>
+                  </div>
+
+                  <div className="mt-3 rounded-lg border border-signal/20 bg-white/80 p-3 text-sm">
+                    <p className="text-ink/80">Configured Weight: {stats.totalWeight.toFixed(2)}%</p>
+                    <p className="text-ink/80">Completed Weight: {stats.completedWeight.toFixed(2)}%</p>
+                    <p className="text-ink/80">Achieved Points: {stats.achievedPoints.toFixed(2)}</p>
+                    {Number.isFinite(stats.targetPercent) && Number.isFinite(stats.requiredAverage) && (
+                      <p className={`mt-1 font-semibold ${stats.isImpossible ? 'text-red-700' : stats.alreadySafe ? 'text-emerald-700' : 'text-signal'}`}>
+                        {stats.isImpossible
+                          ? `Target not possible. Need ${stats.requiredAverage.toFixed(2)}% in remaining.`
+                          : stats.alreadySafe
+                            ? 'Target already achievable with current marks.'
+                            : `Need ${stats.requiredAverage.toFixed(2)}% average in remaining components.`}
+                      </p>
+                    )}
+                    {weightMismatch && (
+                      <p className="mt-1 text-xs font-semibold uppercase text-amber-700">
+                        Tip: set total component weight to 100% for accurate required-score output.
+                      </p>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      </main>
+    </Shell>
+  );
+};
+
 function App() {
   const [sectionFilter, setSectionFilter] = useState(() => localStorage.getItem('clashguard_section_filter') || '');
   const [allClasses, setAllClasses] = useState(() => {
@@ -845,6 +1120,13 @@ function App() {
       return [];
     }
   });
+  const [gradesData, setGradesData] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('clashguard_grades_data') || '{}');
+    } catch {
+      return {};
+    }
+  });
 
   useEffect(() => {
     localStorage.setItem('clashguard_section_filter', sectionFilter);
@@ -857,6 +1139,26 @@ function App() {
   useEffect(() => {
     localStorage.setItem('clashguard_selected_courses', JSON.stringify(selectedCourses));
   }, [selectedCourses]);
+
+  useEffect(() => {
+    setGradesData((prev) => {
+      const allowed = new Set(selectedCourses.map((c) => c.key));
+      const next = {};
+      Object.entries(prev).forEach(([key, value]) => {
+        if (allowed.has(key)) next[key] = value;
+      });
+      selectedCourses.forEach((course) => {
+        if (!next[course.key]) {
+          next[course.key] = { targetPercent: '', components: [createGradeComponent()] };
+        }
+      });
+      return next;
+    });
+  }, [selectedCourses]);
+
+  useEffect(() => {
+    localStorage.setItem('clashguard_grades_data', JSON.stringify(gradesData));
+  }, [gradesData]);
 
   return (
     <BrowserRouter>
@@ -885,6 +1187,10 @@ function App() {
               setSelectedCourses={setSelectedCourses}
             />
           }
+        />
+        <Route
+          path="/grades"
+          element={<GradesPage selectedCourses={selectedCourses} gradesData={gradesData} setGradesData={setGradesData} />}
         />
       </Routes>
     </BrowserRouter>
