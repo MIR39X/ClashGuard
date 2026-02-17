@@ -25,6 +25,10 @@ const DAY_SHORT = {
   Saturday: 'Sat',
   Sunday: 'Sun',
 };
+const WEEK_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+const FREE_WINDOW_START = 8 * 60;
+const FREE_WINDOW_END = 16 * 60;
+const MIN_FREE_SLOT_MINUTES = 10;
 const BTN_BASE =
   'rounded-lg border border-signal px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-signal transition hover:bg-signal hover:text-white disabled:cursor-not-allowed disabled:border-signal/30 disabled:text-signal/35';
 const ALT_LIMITS = ['5', '10', '20', 'all'];
@@ -153,6 +157,100 @@ const percentToLetter = (percent, gradeRanges) => {
   return matched ? matched.label : '';
 };
 
+const minutesToLabel = (mins) => {
+  const safe = Math.max(0, Number(mins) || 0);
+  const h24 = Math.floor(safe / 60);
+  const m = safe % 60;
+  const suffix = h24 >= 12 ? 'PM' : 'AM';
+  const h12 = h24 % 12 || 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${suffix}`;
+};
+
+const normalizeShareEntry = (item) => ({
+  id: item.id || `${item.day}-${item.startMinutes}-${item.endMinutes}-${item.course || item.title}`,
+  day: item.day,
+  startMinutes: item.startMinutes,
+  endMinutes: item.endMinutes,
+  start: item.start,
+  end: item.end,
+  course: item.course,
+  section: item.section,
+  title: item.title,
+  teacher: item.teacher,
+  room: item.room,
+});
+
+const encodeSharePayload = (payload) => {
+  try {
+    return btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+  } catch {
+    return '';
+  }
+};
+
+const decodeSharePayload = (encoded) => {
+  try {
+    return JSON.parse(decodeURIComponent(escape(atob(encoded))));
+  } catch {
+    return null;
+  }
+};
+
+const buildFreeByDay = (entries, windowStart = FREE_WINDOW_START, windowEnd = FREE_WINDOW_END) => {
+  const busyByDay = Object.fromEntries(WEEK_DAYS.map((day) => [day, []]));
+  (entries || []).forEach((entry) => {
+    const day = entry?.day;
+    const start = Number(entry?.startMinutes);
+    const end = Number(entry?.endMinutes);
+    if (!busyByDay[day]) return;
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return;
+    busyByDay[day].push([Math.max(windowStart, start), Math.min(windowEnd, end)]);
+  });
+
+  const freeByDay = {};
+  WEEK_DAYS.forEach((day) => {
+    const busy = busyByDay[day]
+      .filter(([s, e]) => e > s)
+      .sort((a, b) => a[0] - b[0]);
+    const merged = [];
+    busy.forEach(([s, e]) => {
+      const prev = merged[merged.length - 1];
+      if (!prev || s > prev[1]) merged.push([s, e]);
+      else prev[1] = Math.max(prev[1], e);
+    });
+
+    const free = [];
+    let cursor = windowStart;
+    merged.forEach(([s, e]) => {
+      if (s - cursor >= MIN_FREE_SLOT_MINUTES) free.push([cursor, s]);
+      cursor = Math.max(cursor, e);
+    });
+    if (windowEnd - cursor >= MIN_FREE_SLOT_MINUTES) free.push([cursor, windowEnd]);
+    freeByDay[day] = free;
+  });
+  return freeByDay;
+};
+
+const intersectFreeByDay = (leftMap, rightMap) => {
+  const out = {};
+  WEEK_DAYS.forEach((day) => {
+    const a = leftMap?.[day] || [];
+    const b = rightMap?.[day] || [];
+    const merged = [];
+    let i = 0;
+    let j = 0;
+    while (i < a.length && j < b.length) {
+      const start = Math.max(a[i][0], b[j][0]);
+      const end = Math.min(a[i][1], b[j][1]);
+      if (end - start >= MIN_FREE_SLOT_MINUTES) merged.push([start, end]);
+      if (a[i][1] < b[j][1]) i += 1;
+      else j += 1;
+    }
+    out[day] = merged;
+  });
+  return out;
+};
+
 const isReservedOrPlaceholderClass = (item) => {
   const text = `${item?.title || ''} ${item?.raw || ''}`.toLowerCase();
   const code = String(item?.course || '').trim().toUpperCase();
@@ -167,40 +265,43 @@ const MobileBottomNav = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const items = [
-    { label: 'Select', path: '/' },
     { label: 'Timetable', path: '/timetable' },
     { label: 'Clashes', path: '/clashes' },
     { label: 'Alt', path: '/alternatives' },
+    { label: 'Friends', path: '/friends' },
     { label: 'Grades', path: '/grades' },
   ];
-  const currentIndex = Math.max(
-    0,
-    items.findIndex(
-      (item) =>
-        location.pathname === item.path ||
-        (item.path === '/grades' && location.pathname.startsWith('/grades/')),
-    ),
+  const currentIndex = items.findIndex(
+    (item) =>
+      location.pathname === item.path ||
+      (item.path === '/grades' && location.pathname.startsWith('/grades/')),
   );
   const [indicatorIndex, setIndicatorIndex] = useState(() => {
-    if (typeof window === 'undefined') return currentIndex;
+    if (typeof window === 'undefined') return Math.max(0, currentIndex);
     const saved = Number(window.sessionStorage.getItem('clashguard_mobile_nav_index'));
-    return Number.isFinite(saved) ? saved : currentIndex;
+    return Number.isFinite(saved) ? saved : Math.max(0, currentIndex);
   });
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
-    window.sessionStorage.setItem('clashguard_mobile_nav_index', String(currentIndex));
-    const frame = window.requestAnimationFrame(() => setIndicatorIndex(currentIndex));
+    if (currentIndex >= 0) {
+      window.sessionStorage.setItem('clashguard_mobile_nav_index', String(currentIndex));
+    }
+    const frame = window.requestAnimationFrame(() => setIndicatorIndex(Math.max(0, currentIndex)));
     return () => window.cancelAnimationFrame(frame);
   }, [currentIndex]);
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-signal/25 bg-white shadow-[0_-10px_24px_rgba(20,20,20,0.12)] sm:hidden">
       <div className="mx-auto max-w-7xl px-2 pt-2 [padding-bottom:calc(0.5rem+env(safe-area-inset-bottom))]">
-        <div className="relative grid grid-cols-5 rounded-xl border border-signal/25 bg-white/95 p-1">
+        <div
+          className="relative grid rounded-xl border border-signal/25 bg-white/95 p-1"
+          style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
+        >
           <span
             className="pointer-events-none absolute top-1 left-1 h-[calc(100%-8px)] transform-gpu rounded-lg bg-signal shadow-[0_6px_14px_rgba(255,58,32,0.3)] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
             style={{
+              opacity: currentIndex >= 0 ? 1 : 0,
               width: `calc((100% - 8px) / ${items.length})`,
               transform: `translateX(${indicatorIndex * 100}%)`,
             }}
@@ -229,6 +330,8 @@ const MobileBottomNav = () => {
 
 const Shell = ({ children }) => {
   const [showAbout, setShowAbout] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
   const isNativeApp =
     typeof window !== 'undefined' &&
     !!window.Capacitor &&
@@ -239,23 +342,17 @@ const Shell = ({ children }) => {
     <div className="relative min-h-screen overflow-x-hidden px-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-4 sm:px-5 sm:pb-6 sm:pt-6 md:px-8 lg:px-10">
         <div className="pointer-events-none absolute -right-16 top-24 h-36 w-36 rounded-full bg-signal/20 blur-2xl animate-pulse-slow"></div>
         <div className="pointer-events-none absolute -left-20 bottom-12 h-44 w-44 rounded-full bg-blue-400/25 blur-2xl animate-pulse-slow"></div>
-        <header className="mx-auto flex w-full max-w-7xl items-center justify-between border-t-4 border-signal pt-4 sm:pt-5">
-          <div className="flex items-center gap-2">
-            <button
-              aria-label="About Arsalan Mir"
-              onClick={() => setShowAbout(true)}
-              className="grid h-11 w-11 place-content-center rounded-md border border-signal/40 bg-white/40 hover:bg-signal/10"
-            >
-              <span className="mb-1 block h-0.5 w-5 bg-signal"></span>
-              <span className="mb-1 block h-0.5 w-5 bg-signal"></span>
-              <span className="block h-0.5 w-5 bg-signal"></span>
+        <header className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-2 border-t-4 border-signal pt-4 sm:flex-nowrap sm:gap-3 sm:pt-5">
+          <div className="flex min-w-0 items-center gap-2">
+            <button onClick={() => navigate('/')} className={`${BTN_BASE} w-[84px] text-center sm:w-auto`}>
+              Home
             </button>
-            <button onClick={() => setShowAbout(true)} className={BTN_BASE}>
+            <button onClick={() => setShowAbout(true)} className={`${BTN_BASE} hidden sm:inline-flex`}>
               About Me
             </button>
           </div>
-          <div className="flex items-center gap-2">
-            <p className="hidden text-[10px] tracking-[0.22em] text-signal sm:block sm:text-xs sm:tracking-[0.3em] md:text-sm">
+          <div className="ml-auto flex min-w-0 items-center gap-2">
+            <p className="hidden truncate text-[10px] tracking-[0.22em] text-signal lg:block lg:text-xs lg:tracking-[0.3em]">
               CLASHGUARD / SPRING 2026
             </p>
             {!isNativeApp && (
@@ -263,14 +360,25 @@ const Shell = ({ children }) => {
                 href={APK_DOWNLOAD_URL}
                 target="_blank"
                 rel="noreferrer"
-                className={BTN_BASE}
+                className={`${BTN_BASE} w-[84px] text-center sm:w-auto`}
               >
-                Download APK
+                <span className="sm:hidden">APK</span>
+                <span className="hidden sm:inline">Download APK</span>
               </a>
             )}
           </div>
         </header>
         {children}
+        {location.pathname === '/' && (
+          <div className="mx-auto mt-2 w-full max-w-7xl text-center sm:hidden">
+            <button
+              onClick={() => setShowAbout(true)}
+              className="text-[11px] font-semibold uppercase tracking-[0.16em] text-signal/80 underline underline-offset-4"
+            >
+              About Developer
+            </button>
+          </div>
+        )}
         <MobileBottomNav />
 
         {showAbout && (
@@ -503,6 +611,9 @@ const SelectPage = ({ sectionFilter, setSectionFilter, allClasses, setAllClasses
                 View My Timetable
               </button>
             </div>
+            <button onClick={() => navigate('/friends')} className={`${BTN_BASE} mt-2 w-full py-2 text-[11px]`}>
+              Friends Free Slots
+            </button>
           </div>
         </section>
 
@@ -626,6 +737,9 @@ const TimetablePage = ({ allClasses, selectedCourses }) => {
             <div className="hidden w-full gap-2 sm:grid sm:w-auto sm:grid-flow-col sm:auto-cols-max">
               <button onClick={() => navigate('/clashes')} className={BTN_BASE}>
                 Clash Report
+              </button>
+              <button onClick={() => navigate('/friends')} className={BTN_BASE}>
+                Friends
               </button>
               <button onClick={() => navigate('/grades')} className={BTN_BASE}>
                 Grades
@@ -1520,6 +1634,260 @@ const SettingsPage = ({ gradeRanges, setGradeRanges }) => {
   );
 };
 
+const FriendsPage = ({ allClasses, selectedCourses, friends, setFriends }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [friendName, setFriendName] = useState('');
+  const [shareInput, setShareInput] = useState('');
+  const [selectedFriendId, setSelectedFriendId] = useState(() => friends[0]?.id || '');
+  const [msg, setMsg] = useState('');
+
+  const myEntries = useMemo(
+    () =>
+      selectedEntriesFromCourses(selectedCourses, allClasses).sort(
+        (a, b) => daySortValue(a.day) - daySortValue(b.day) || a.startMinutes - b.startMinutes,
+      ),
+    [allClasses, selectedCourses],
+  );
+
+  const shareCode = useMemo(
+    () =>
+      encodeSharePayload({
+        v: 1,
+        createdAt: new Date().toISOString(),
+        entries: myEntries.map(normalizeShareEntry),
+      }),
+    [myEntries],
+  );
+
+  const shareUrl = useMemo(() => {
+    if (typeof window === 'undefined' || !shareCode) return '';
+    return `${window.location.origin}/friends?payload=${encodeURIComponent(shareCode)}`;
+  }, [shareCode]);
+
+  useEffect(() => {
+    if (!selectedFriendId && friends[0]?.id) setSelectedFriendId(friends[0].id);
+    if (selectedFriendId && !friends.some((f) => f.id === selectedFriendId)) {
+      setSelectedFriendId(friends[0]?.id || '');
+    }
+  }, [friends, selectedFriendId]);
+
+  const extractPayload = (input) => {
+    const raw = String(input || '').trim();
+    if (!raw) return '';
+    try {
+      const parsed = new URL(raw);
+      return parsed.searchParams.get('payload') || raw;
+    } catch {
+      return raw;
+    }
+  };
+
+  const saveFriendFromPayload = (name, payloadText) => {
+    const payload = decodeSharePayload(extractPayload(payloadText));
+    if (!payload || !Array.isArray(payload.entries) || payload.entries.length === 0) {
+      setMsg('Invalid or empty share link.');
+      return;
+    }
+    const cleanName = String(name || '').trim() || `Friend ${friends.length + 1}`;
+    const entries = payload.entries
+      .map((entry) => ({
+        ...entry,
+        startMinutes: Number(entry.startMinutes),
+        endMinutes: Number(entry.endMinutes),
+      }))
+      .filter((entry) => entry.day && Number.isFinite(entry.startMinutes) && Number.isFinite(entry.endMinutes));
+
+    const existing = friends.find((f) => f.name.toLowerCase() === cleanName.toLowerCase());
+    const nextFriend = {
+      id: existing?.id || `fr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      name: cleanName,
+      entries,
+      updatedAt: new Date().toISOString(),
+    };
+    setFriends((prev) => {
+      const without = prev.filter((f) => f.id !== nextFriend.id);
+      return [nextFriend, ...without];
+    });
+    setSelectedFriendId(nextFriend.id);
+    setMsg(`Linked friend: ${cleanName}`);
+    setShareInput('');
+  };
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const payload = params.get('payload');
+    if (!payload) return;
+    if (friends.length === 0) {
+      setMsg('Incoming share link detected. Enter friend name and tap Link Friend.');
+      setShareInput(payload);
+    }
+  }, [friends.length, location.search]);
+
+  const selectedFriend = friends.find((f) => f.id === selectedFriendId) || null;
+  const myFreeByDay = useMemo(() => buildFreeByDay(myEntries), [myEntries]);
+  const friendFreeByDay = useMemo(
+    () => buildFreeByDay(selectedFriend?.entries || []),
+    [selectedFriend?.entries],
+  );
+  const mutualFreeByDay = useMemo(
+    () => intersectFreeByDay(myFreeByDay, friendFreeByDay),
+    [friendFreeByDay, myFreeByDay],
+  );
+
+  const renderDayRows = (map, emptyLabel) => (
+    <div className="mt-2 grid gap-2">
+      {WEEK_DAYS.map((day) => {
+        const slots = map?.[day] || [];
+        return (
+          <div key={day} className="rounded-lg border border-ink/15 bg-white p-2">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink/65">{day}</p>
+            {slots.length === 0 ? (
+              <p className="mt-1 text-xs text-ink/55">{emptyLabel}</p>
+            ) : (
+              <div className="mt-1 flex flex-wrap gap-1">
+                {slots.map(([start, end], idx) => (
+                  <span
+                    key={`${day}-${start}-${end}-${idx}`}
+                    className="rounded-full border border-ink/20 bg-ash px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-ink/75"
+                  >
+                    {minutesToLabel(start)} - {minutesToLabel(end)}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const removeFriend = (id) => {
+    setFriends((prev) => prev.filter((f) => f.id !== id));
+    if (selectedFriendId === id) setSelectedFriendId('');
+  };
+
+  return (
+    <Shell>
+      <main className="mx-auto w-full max-w-7xl pt-8 md:pt-12">
+        <section className="animate-rise rounded-2xl border border-signal/35 bg-white/65 p-6 backdrop-blur-sm md:p-8">
+          <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+            <h1 className="font-display text-signal text-[clamp(2.2rem,6vw,4.8rem)] leading-[0.9] tracking-wide">
+              [07]_FRIENDS
+            </h1>
+            <div className="hidden w-full gap-2 sm:grid sm:w-auto sm:grid-flow-col sm:auto-cols-max">
+              <button onClick={() => navigate('/timetable')} className={BTN_BASE}>Timetable</button>
+              <button onClick={() => navigate('/clashes')} className={BTN_BASE}>Clashes</button>
+              <button onClick={() => navigate('/')} className={BTN_BASE}>Back</button>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="rounded-xl border border-signal/30 bg-white/85 p-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-signal">Share My Timetable</p>
+              <p className="mt-1 text-xs text-ink/70">Send this link or QR to your friend.</p>
+              <input
+                readOnly
+                value={shareUrl}
+                className="mt-2 w-full rounded-md border border-ink/20 bg-ash px-2 py-2 text-xs outline-none"
+              />
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  onClick={async () => {
+                    if (!shareUrl) return;
+                    await navigator.clipboard.writeText(shareUrl);
+                    setMsg('Share link copied.');
+                  }}
+                  className={BTN_BASE}
+                >
+                  Copy Link
+                </button>
+              </div>
+              {shareUrl && (
+                <img
+                  alt="Share timetable QR"
+                  className="mt-3 h-44 w-44 rounded-lg border border-signal/30 bg-white p-2"
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(shareUrl)}`}
+                />
+              )}
+            </div>
+
+            <div className="rounded-xl border border-signal/30 bg-white/85 p-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-signal">Add / Update Friend</p>
+              <input
+                value={friendName}
+                onChange={(e) => setFriendName(e.target.value)}
+                placeholder="Friend name (e.g., Gotham)"
+                className="mt-2 w-full rounded-md border border-ink/20 bg-white px-3 py-2 text-sm outline-none focus:border-signal"
+              />
+              <textarea
+                value={shareInput}
+                onChange={(e) => setShareInput(e.target.value)}
+                placeholder="Paste shared link or payload code"
+                className="mt-2 h-24 w-full rounded-md border border-ink/20 bg-white px-3 py-2 text-xs outline-none focus:border-signal"
+              />
+              <button
+                onClick={() => saveFriendFromPayload(friendName, shareInput)}
+                className={`${BTN_BASE} mt-2`}
+              >
+                Link Friend
+              </button>
+              {msg && <p className="mt-2 text-xs font-semibold uppercase text-signal">{msg}</p>}
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-xl border border-signal/30 bg-white/80 p-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-signal">Friends</p>
+            {friends.length === 0 ? (
+              <p className="mt-2 text-sm text-ink/70">No friends linked yet.</p>
+            ) : (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {friends.map((friend) => (
+                  <div key={friend.id} className="flex items-center gap-1">
+                    <button
+                      onClick={() => setSelectedFriendId(friend.id)}
+                      className={`rounded-md border px-3 py-1 text-xs uppercase ${
+                        selectedFriendId === friend.id
+                          ? 'border-signal bg-signal text-white'
+                          : 'border-signal/35 text-signal'
+                      }`}
+                    >
+                      {friend.name}
+                    </button>
+                    <button
+                      onClick={() => removeFriend(friend.id)}
+                      className="rounded-md border border-signal/35 px-2 py-1 text-[10px] uppercase text-signal"
+                    >
+                      x
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-4 grid gap-3 lg:grid-cols-3">
+            <div className="rounded-xl border border-signal/25 bg-signal/5 p-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-signal">Mutual Free Slots</p>
+              {selectedFriend ? renderDayRows(mutualFreeByDay, 'No mutual free slot') : <p className="mt-2 text-sm text-ink/65">Select a friend first.</p>}
+            </div>
+            <div className="rounded-xl border border-ink/15 bg-white/90 p-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/70">
+                {selectedFriend ? `${selectedFriend.name} Free Slots` : 'Friend Free Slots'}
+              </p>
+              {selectedFriend ? renderDayRows(friendFreeByDay, 'No free slot') : <p className="mt-2 text-sm text-ink/65">Select a friend first.</p>}
+            </div>
+            <div className="rounded-xl border border-ink/15 bg-white/90 p-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/70">My Free Slots</p>
+              {renderDayRows(myFreeByDay, 'No free slot')}
+            </div>
+          </div>
+        </section>
+      </main>
+    </Shell>
+  );
+};
+
 function App() {
   const [sectionFilter, setSectionFilter] = useState(() => localStorage.getItem('clashguard_section_filter') || '');
   const [allClasses, setAllClasses] = useState(() => {
@@ -1559,6 +1927,14 @@ function App() {
       return DEFAULT_GRADE_RANGES;
     } catch {
       return DEFAULT_GRADE_RANGES;
+    }
+  });
+  const [friends, setFriends] = useState(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem('clashguard_friends') || '[]');
+      return Array.isArray(raw) ? raw : [];
+    } catch {
+      return [];
     }
   });
 
@@ -1607,6 +1983,9 @@ function App() {
   useEffect(() => {
     localStorage.setItem('clashguard_grade_ranges', JSON.stringify(gradeRanges));
   }, [gradeRanges]);
+  useEffect(() => {
+    localStorage.setItem('clashguard_friends', JSON.stringify(friends));
+  }, [friends]);
 
   return (
     <BrowserRouter>
@@ -1633,6 +2012,17 @@ function App() {
               allClasses={allClasses}
               selectedCourses={selectedCourses}
               setSelectedCourses={setSelectedCourses}
+            />
+          }
+        />
+        <Route
+          path="/friends"
+          element={
+            <FriendsPage
+              allClasses={allClasses}
+              selectedCourses={selectedCourses}
+              friends={friends}
+              setFriends={setFriends}
             />
           }
         />
