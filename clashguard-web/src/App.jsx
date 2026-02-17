@@ -33,6 +33,8 @@ const BTN_BASE =
   'rounded-lg border border-signal px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-signal transition hover:bg-signal hover:text-white disabled:cursor-not-allowed disabled:border-signal/30 disabled:text-signal/35';
 const ALT_LIMITS = ['5', '10', '20', 'all'];
 const APK_DOWNLOAD_URL = '/clashguard.apk';
+const HEADER_WEBSITE_LOGO = '/logos/clashguard-logo-wordmark.png';
+const HEADER_MOBILE_LOGO = '/logos/clashguard-logo-mark.png';
 const ABOUT_ME = {
   name: 'Arsalan Mir',
   bio: 'I am just a chill guy.',
@@ -342,7 +344,7 @@ const Shell = ({ children }) => {
     <div className="relative min-h-screen overflow-x-hidden px-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-4 sm:px-5 sm:pb-6 sm:pt-6 md:px-8 lg:px-10">
         <div className="pointer-events-none absolute -right-16 top-24 h-36 w-36 rounded-full bg-signal/20 blur-2xl animate-pulse-slow"></div>
         <div className="pointer-events-none absolute -left-20 bottom-12 h-44 w-44 rounded-full bg-blue-400/25 blur-2xl animate-pulse-slow"></div>
-        <header className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-2 border-t-4 border-signal pt-4 sm:flex-nowrap sm:gap-3 sm:pt-5">
+        <header className="relative mx-auto flex w-full max-w-7xl items-center justify-between gap-2 border-t-4 border-signal pt-4 sm:gap-3 sm:pt-5">
           <div className="flex min-w-0 items-center gap-2">
             <button onClick={() => navigate('/')} className={`${BTN_BASE} w-[84px] text-center sm:w-auto`}>
               Home
@@ -351,9 +353,17 @@ const Shell = ({ children }) => {
               About Me
             </button>
           </div>
+          <img
+            src={HEADER_MOBILE_LOGO}
+            alt="ClashGuard"
+            className="pointer-events-none absolute left-1/2 top-1/2 h-28 w-28 -translate-x-1/2 -translate-y-1/2 object-contain sm:hidden"
+          />
+          <div className="pointer-events-none absolute left-1/2 top-[calc(50%+10px)] hidden -translate-x-1/2 -translate-y-1/2 sm:block">
+            <img src={HEADER_WEBSITE_LOGO} alt="ClashGuard" className="h-40 w-auto max-w-[1400px] object-contain" />
+          </div>
           <div className="ml-auto flex min-w-0 items-center gap-2">
             <p className="hidden truncate text-[10px] tracking-[0.22em] text-signal lg:block lg:text-xs lg:tracking-[0.3em]">
-              CLASHGUARD / SPRING 2026
+              SPRING 2026
             </p>
             {!isNativeApp && (
               <a
@@ -379,6 +389,9 @@ const Shell = ({ children }) => {
             </button>
           </div>
         )}
+        <footer className="mx-auto mt-3 w-full max-w-7xl pb-2 text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-ink/60 sm:mt-4 sm:text-xs">
+          Clashguard 2026 All Rights Reserved
+        </footer>
         <MobileBottomNav />
 
         {showAbout && (
