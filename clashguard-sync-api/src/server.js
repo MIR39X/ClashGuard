@@ -6,6 +6,8 @@ import { sectionClashes } from './parser.js';
 import { getSyncState, runSync, startAutoSync, stopAutoSync } from './syncService.js';
 
 const app = express();
+const shareStore = new Map();
+const SHARE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 app.use(
   cors({
@@ -30,6 +32,8 @@ app.get('/', (_req, res) => {
       'POST /sync/trigger',
       'GET /classes?section=BCY-6A',
       'GET /clashes?section=BCY-6A',
+      'POST /share',
+      'GET /share/:code',
     ],
   });
 });
@@ -93,6 +97,49 @@ app.get('/clashes', (req, res) => {
 
   const clashes = sectionClashes(getSyncState().classes, section);
   res.json({ section, count: clashes.length, clashes });
+});
+
+const cleanupExpiredShares = () => {
+  const now = Date.now();
+  for (const [code, value] of shareStore.entries()) {
+    if (value.expiresAt <= now) shareStore.delete(code);
+  }
+};
+
+const createShareCode = () => Math.random().toString(36).slice(2, 8);
+
+app.post('/share', (req, res) => {
+  cleanupExpiredShares();
+  const entries = Array.isArray(req.body?.entries) ? req.body.entries : [];
+  if (entries.length === 0) {
+    res.status(400).json({ error: 'entries array is required' });
+    return;
+  }
+
+  let code = createShareCode();
+  while (shareStore.has(code)) code = createShareCode();
+  const createdAt = Date.now();
+  shareStore.set(code, {
+    createdAt,
+    expiresAt: createdAt + SHARE_TTL_MS,
+    payload: {
+      v: 1,
+      createdAt: new Date(createdAt).toISOString(),
+      entries,
+    },
+  });
+  res.json({ code, expiresInMs: SHARE_TTL_MS });
+});
+
+app.get('/share/:code', (req, res) => {
+  cleanupExpiredShares();
+  const code = String(req.params.code || '').toLowerCase();
+  const found = shareStore.get(code);
+  if (!found) {
+    res.status(404).json({ error: 'Share code not found or expired' });
+    return;
+  }
+  res.json({ code, expiresAt: new Date(found.expiresAt).toISOString(), ...found.payload });
 });
 
 const server = app.listen(config.port, async () => {

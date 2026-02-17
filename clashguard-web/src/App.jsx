@@ -1639,6 +1639,8 @@ const FriendsPage = ({ allClasses, selectedCourses, friends, setFriends }) => {
   const location = useLocation();
   const [friendName, setFriendName] = useState('');
   const [shareInput, setShareInput] = useState('');
+  const [shareCode, setShareCode] = useState('');
+  const [shareBusy, setShareBusy] = useState(false);
   const [selectedFriendId, setSelectedFriendId] = useState(() => friends[0]?.id || '');
   const [msg, setMsg] = useState('');
 
@@ -1650,19 +1652,47 @@ const FriendsPage = ({ allClasses, selectedCourses, friends, setFriends }) => {
     [allClasses, selectedCourses],
   );
 
-  const shareCode = useMemo(
-    () =>
-      encodeSharePayload({
-        v: 1,
-        createdAt: new Date().toISOString(),
-        entries: myEntries.map(normalizeShareEntry),
-      }),
-    [myEntries],
-  );
+  useEffect(() => {
+    let cancelled = false;
+    const createShare = async () => {
+      if (myEntries.length === 0) {
+        setShareCode('');
+        return;
+      }
+      setShareBusy(true);
+      try {
+        const response = await fetch(`${API_BASE}/share`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ entries: myEntries.map(normalizeShareEntry) }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to create share link');
+        if (!cancelled) setShareCode(String(data.code || ''));
+      } catch {
+        // fallback for compatibility if share endpoint is not deployed yet
+        const fallback = encodeSharePayload({
+          v: 1,
+          createdAt: new Date().toISOString(),
+          entries: myEntries.map(normalizeShareEntry),
+        });
+        if (!cancelled) setShareCode(fallback);
+      } finally {
+        if (!cancelled) setShareBusy(false);
+      }
+    };
+    createShare();
+    return () => {
+      cancelled = true;
+    };
+  }, [myEntries]);
 
   const shareUrl = useMemo(() => {
     if (typeof window === 'undefined' || !shareCode) return '';
-    return `${window.location.origin}/friends?payload=${encodeURIComponent(shareCode)}`;
+    const isShortCode = /^[a-z0-9]{6,}$/i.test(shareCode);
+    return isShortCode
+      ? `${window.location.origin}/friends?share=${encodeURIComponent(shareCode)}`
+      : `${window.location.origin}/friends?payload=${encodeURIComponent(shareCode)}`;
   }, [shareCode]);
 
   useEffect(() => {
@@ -1672,55 +1702,76 @@ const FriendsPage = ({ allClasses, selectedCourses, friends, setFriends }) => {
     }
   }, [friends, selectedFriendId]);
 
-  const extractPayload = (input) => {
+  const fetchPayloadByCode = async (code) => {
+    const response = await fetch(`${API_BASE}/share/${encodeURIComponent(code)}`);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Invalid share code');
+    return data;
+  };
+
+  const resolvePayloadFromInput = async (input) => {
     const raw = String(input || '').trim();
-    if (!raw) return '';
+    if (!raw) return null;
+    const maybeCode = /^[a-z0-9]{6,}$/i.test(raw);
+    if (maybeCode) return fetchPayloadByCode(raw);
+
     try {
       const parsed = new URL(raw);
-      return parsed.searchParams.get('payload') || raw;
+      const share = parsed.searchParams.get('share');
+      if (share) return fetchPayloadByCode(share);
+      const payload = parsed.searchParams.get('payload');
+      if (payload) return decodeSharePayload(payload);
+      const shareMatch = parsed.pathname.match(/\/share\/([a-z0-9]+)/i);
+      if (shareMatch?.[1]) return fetchPayloadByCode(shareMatch[1]);
+      return null;
     } catch {
-      return raw;
+      return decodeSharePayload(raw);
     }
   };
 
-  const saveFriendFromPayload = (name, payloadText) => {
-    const payload = decodeSharePayload(extractPayload(payloadText));
-    if (!payload || !Array.isArray(payload.entries) || payload.entries.length === 0) {
-      setMsg('Invalid or empty share link.');
-      return;
-    }
-    const cleanName = String(name || '').trim() || `Friend ${friends.length + 1}`;
-    const entries = payload.entries
-      .map((entry) => ({
-        ...entry,
-        startMinutes: Number(entry.startMinutes),
-        endMinutes: Number(entry.endMinutes),
-      }))
-      .filter((entry) => entry.day && Number.isFinite(entry.startMinutes) && Number.isFinite(entry.endMinutes));
+  const saveFriendFromPayload = async (name, payloadText) => {
+    try {
+      const payload = await resolvePayloadFromInput(payloadText);
+      if (!payload || !Array.isArray(payload.entries) || payload.entries.length === 0) {
+        setMsg('Invalid or empty share link.');
+        return;
+      }
+      const cleanName = String(name || '').trim() || `Friend ${friends.length + 1}`;
+      const entries = payload.entries
+        .map((entry) => ({
+          ...entry,
+          startMinutes: Number(entry.startMinutes),
+          endMinutes: Number(entry.endMinutes),
+        }))
+        .filter((entry) => entry.day && Number.isFinite(entry.startMinutes) && Number.isFinite(entry.endMinutes));
 
-    const existing = friends.find((f) => f.name.toLowerCase() === cleanName.toLowerCase());
-    const nextFriend = {
-      id: existing?.id || `fr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      name: cleanName,
-      entries,
-      updatedAt: new Date().toISOString(),
-    };
-    setFriends((prev) => {
-      const without = prev.filter((f) => f.id !== nextFriend.id);
-      return [nextFriend, ...without];
-    });
-    setSelectedFriendId(nextFriend.id);
-    setMsg(`Linked friend: ${cleanName}`);
-    setShareInput('');
+      const existing = friends.find((f) => f.name.toLowerCase() === cleanName.toLowerCase());
+      const nextFriend = {
+        id: existing?.id || `fr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        name: cleanName,
+        entries,
+        updatedAt: new Date().toISOString(),
+      };
+      setFriends((prev) => {
+        const without = prev.filter((f) => f.id !== nextFriend.id);
+        return [nextFriend, ...without];
+      });
+      setSelectedFriendId(nextFriend.id);
+      setMsg(`Linked friend: ${cleanName}`);
+      setShareInput('');
+    } catch (error) {
+      setMsg(error?.message || 'Failed to link friend.');
+    }
   };
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
+    const share = params.get('share');
     const payload = params.get('payload');
-    if (!payload) return;
+    if (!share && !payload) return;
     if (friends.length === 0) {
       setMsg('Incoming share link detected. Enter friend name and tap Link Friend.');
-      setShareInput(payload);
+      setShareInput(share || payload || '');
     }
   }, [friends.length, location.search]);
 
@@ -1788,13 +1839,13 @@ const FriendsPage = ({ allClasses, selectedCourses, friends, setFriends }) => {
               <p className="mt-1 text-xs text-ink/70">Send this link or QR to your friend.</p>
               <input
                 readOnly
-                value={shareUrl}
+                value={shareBusy ? 'Generating short link...' : shareUrl}
                 className="mt-2 w-full rounded-md border border-ink/20 bg-ash px-2 py-2 text-xs outline-none"
               />
               <div className="mt-2 flex flex-wrap gap-2">
                 <button
                   onClick={async () => {
-                    if (!shareUrl) return;
+                    if (!shareUrl || shareBusy) return;
                     await navigator.clipboard.writeText(shareUrl);
                     setMsg('Share link copied.');
                   }}
@@ -1823,7 +1874,7 @@ const FriendsPage = ({ allClasses, selectedCourses, friends, setFriends }) => {
               <textarea
                 value={shareInput}
                 onChange={(e) => setShareInput(e.target.value)}
-                placeholder="Paste shared link or payload code"
+                placeholder="Paste shared link or short share code"
                 className="mt-2 h-24 w-full rounded-md border border-ink/20 bg-white px-3 py-2 text-xs outline-none focus:border-signal"
               />
               <button
