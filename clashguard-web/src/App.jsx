@@ -173,10 +173,38 @@ const MobileBottomNav = () => {
     { label: 'Alt', path: '/alternatives' },
     { label: 'Grades', path: '/grades' },
   ];
+  const currentIndex = Math.max(
+    0,
+    items.findIndex(
+      (item) =>
+        location.pathname === item.path ||
+        (item.path === '/grades' && location.pathname.startsWith('/grades/')),
+    ),
+  );
+  const [indicatorIndex, setIndicatorIndex] = useState(() => {
+    if (typeof window === 'undefined') return currentIndex;
+    const saved = Number(window.sessionStorage.getItem('clashguard_mobile_nav_index'));
+    return Number.isFinite(saved) ? saved : currentIndex;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    window.sessionStorage.setItem('clashguard_mobile_nav_index', String(currentIndex));
+    const frame = window.requestAnimationFrame(() => setIndicatorIndex(currentIndex));
+    return () => window.cancelAnimationFrame(frame);
+  }, [currentIndex]);
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-signal/25 bg-white/95 p-2 backdrop-blur-sm sm:hidden">
-      <div className="grid grid-cols-5 gap-1">
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-signal/25 bg-white shadow-[0_-10px_24px_rgba(20,20,20,0.12)] sm:hidden">
+      <div className="mx-auto max-w-7xl px-2 pt-2 [padding-bottom:calc(0.5rem+env(safe-area-inset-bottom))]">
+        <div className="relative grid grid-cols-5 rounded-xl border border-signal/25 bg-white/95 p-1">
+          <span
+            className="pointer-events-none absolute top-1 left-1 h-[calc(100%-8px)] transform-gpu rounded-lg bg-signal shadow-[0_6px_14px_rgba(255,58,32,0.3)] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+            style={{
+              width: `calc((100% - 8px) / ${items.length})`,
+              transform: `translateX(${indicatorIndex * 100}%)`,
+            }}
+          />
         {items.map((item) => {
           const active =
             location.pathname === item.path ||
@@ -185,14 +213,15 @@ const MobileBottomNav = () => {
             <button
               key={item.path}
               onClick={() => navigate(item.path)}
-              className={`rounded-md px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] ${
-                active ? 'bg-signal text-white' : 'text-signal'
+              className={`z-10 min-w-0 truncate rounded-md px-1 py-2 text-[9px] font-semibold uppercase leading-none tracking-[0.1em] transition-colors duration-200 ${
+                active ? 'text-white' : 'text-signal/85'
               }`}
             >
               {item.label}
             </button>
           );
         })}
+        </div>
       </div>
     </nav>
   );
@@ -207,7 +236,7 @@ const Shell = ({ children }) => {
     window.Capacitor.isNativePlatform();
 
   return (
-    <div className="relative min-h-screen overflow-hidden px-3 pb-20 pt-4 sm:px-5 sm:pb-6 sm:pt-6 md:px-8 lg:px-10">
+    <div className="relative min-h-screen overflow-x-hidden px-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-4 sm:px-5 sm:pb-6 sm:pt-6 md:px-8 lg:px-10">
         <div className="pointer-events-none absolute -right-16 top-24 h-36 w-36 rounded-full bg-signal/20 blur-2xl animate-pulse-slow"></div>
         <div className="pointer-events-none absolute -left-20 bottom-12 h-44 w-44 rounded-full bg-blue-400/25 blur-2xl animate-pulse-slow"></div>
         <header className="mx-auto flex w-full max-w-7xl items-center justify-between border-t-4 border-signal pt-4 sm:pt-5">
@@ -297,11 +326,18 @@ const Shell = ({ children }) => {
 };
 
 const SelectPage = ({ sectionFilter, setSectionFilter, allClasses, setAllClasses, selectedCourses, setSelectedCourses }) => {
+  const CLASSES_FETCHED_AT_KEY = 'clashguard_all_classes_fetched_at';
+  const CLASSES_ETAG_KEY = 'clashguard_all_classes_etag';
+  const CLASSES_CACHE_TTL_MS = 15 * 60 * 1000;
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
   const [showSelectedModal, setShowSelectedModal] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState(() => {
+    const raw = Number(localStorage.getItem(CLASSES_FETCHED_AT_KEY) || '0');
+    return Number.isFinite(raw) ? raw : 0;
+  });
 
   const selectedMap = useMemo(
     () => new Map(selectedCourses.map((item) => [item.key, true])),
@@ -347,25 +383,57 @@ const SelectPage = ({ sectionFilter, setSectionFilter, allClasses, setAllClasses
     return selectedCourses.flatMap((item) => item.entries || []);
   }, [selectedCourses]);
 
-  const fetchClasses = async () => {
-    setLoading(true);
-    setError('');
+  const fetchClasses = async ({ silent = false } = {}) => {
+    if (!silent) {
+      setLoading(true);
+      setError('');
+    }
     try {
-      const response = await fetch(`${API_BASE}/classes`);
+      const knownEtag = localStorage.getItem(CLASSES_ETAG_KEY);
+      const headers = knownEtag ? { 'If-None-Match': knownEtag } : {};
+      const response = await fetch(`${API_BASE}/classes`, { headers });
+      const responseEtag = response.headers.get('etag');
+
+      if (response.status === 304) {
+        const now = Date.now();
+        setLastSyncedAt(now);
+        localStorage.setItem(CLASSES_FETCHED_AT_KEY, String(now));
+        if (responseEtag) localStorage.setItem(CLASSES_ETAG_KEY, responseEtag);
+        if (silent) setError('');
+        return;
+      }
+
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to fetch classes');
       const cleaned = (data.classes || []).filter((item) => !isReservedOrPlaceholderClass(item));
       setAllClasses(cleaned);
+      const now = Date.now();
+      setLastSyncedAt(now);
+      localStorage.setItem(CLASSES_FETCHED_AT_KEY, String(now));
+      if (responseEtag) localStorage.setItem(CLASSES_ETAG_KEY, responseEtag);
+      if (silent) setError('');
     } catch (err) {
-      setError(err.message);
-      setAllClasses([]);
+      if (allClasses.length === 0) {
+        setAllClasses([]);
+        setError(err.message);
+      } else if (!silent) {
+        setError(err.message);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchClasses();
+    const hasCache = allClasses.length > 0;
+    if (!hasCache) {
+      fetchClasses();
+      return;
+    }
+    const cacheAge = Date.now() - lastSyncedAt;
+    if (cacheAge > CLASSES_CACHE_TTL_MS) {
+      fetchClasses({ silent: true });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -401,31 +469,38 @@ const SelectPage = ({ sectionFilter, setSectionFilter, allClasses, setAllClasses
                 placeholder="BCY-6A / BCS-4K"
               />
             </div>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+              <button
+                onClick={() => fetchClasses()}
+                disabled={loading}
+                className={`${BTN_BASE} px-3 py-1.5 text-[10px] disabled:opacity-50`}
+              >
+                {loading ? 'Refreshing...' : 'Refresh Courses'}
+              </button>
+              {lastSyncedAt > 0 && (
+                <p className="text-[10px] uppercase tracking-[0.14em] text-ink/55">
+                  Last Sync: {new Date(lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              )}
+            </div>
             {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
           </div>
 
           <div className="mt-3 rounded-xl border border-signal/30 bg-white/70 p-4">
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 sm:items-center">
+            <div className="grid gap-2 sm:grid-cols-2 sm:items-center">
               <button
                 onClick={() => setShowSelectedModal(true)}
                 disabled={selectedCourses.length === 0}
-                className={`${BTN_BASE} w-full py-3 text-sm`}
+                className={`${BTN_BASE} flex h-12 w-full items-center justify-center whitespace-normal px-3 text-center text-[11px] leading-tight sm:h-14`}
               >
                 Show My Selected Courses
               </button>
               <button
                 onClick={() => navigate('/timetable')}
                 disabled={selectedCourses.length < 1}
-                className={`${BTN_BASE} w-full py-3 text-sm`}
+                className={`${BTN_BASE} flex h-12 w-full items-center justify-center whitespace-normal px-3 text-center text-[11px] leading-tight sm:h-14`}
               >
                 View My Timetable
-              </button>
-              <button
-                onClick={() => navigate('/grades')}
-                disabled={selectedCourses.length < 1}
-                className={`${BTN_BASE} w-full py-3 text-sm`}
-              >
-                Grades
               </button>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import cors from 'cors';
 import express from 'express';
+import { createHash } from 'node:crypto';
 import { config } from './config.js';
 import { sectionClashes } from './parser.js';
 import { getSyncState, runSync, startAutoSync, stopAutoSync } from './syncService.js';
@@ -48,13 +49,37 @@ app.post('/sync/trigger', async (_req, res) => {
   res.json({ status, error, totalClasses, finishedAt });
 });
 
+const toEtag = (payload) => {
+  const hash = createHash('sha1').update(payload).digest('base64url');
+  return `"${hash}"`;
+};
+
+const matchesIfNoneMatch = (ifNoneMatch, currentEtag) => {
+  if (!ifNoneMatch) return false;
+  const normalizedCurrent = String(currentEtag || '').replace(/^W\//, '').trim();
+  const parts = String(ifNoneMatch)
+    .split(',')
+    .map((part) => part.replace(/^W\//, '').trim());
+  return parts.includes('*') || parts.includes(normalizedCurrent);
+};
+
 app.get('/classes', (req, res) => {
   const { section, day, course } = req.query;
   let data = getSyncState().classes;
 
-  if (section) data = data.filter((item) => item.section.toLowerCase() === String(section).toLowerCase());
-  if (day) data = data.filter((item) => item.day.toLowerCase() === String(day).toLowerCase());
-  if (course) data = data.filter((item) => item.course.toLowerCase() === String(course).toLowerCase());
+  if (section) data = data.filter((item) => String(item.section || '').toLowerCase() === String(section).toLowerCase());
+  if (day) data = data.filter((item) => String(item.day || '').toLowerCase() === String(day).toLowerCase());
+  if (course) data = data.filter((item) => String(item.course || '').toLowerCase() === String(course).toLowerCase());
+
+  const payload = JSON.stringify(data);
+  const etag = toEtag(payload);
+  res.set('ETag', etag);
+  res.set('Cache-Control', 'private, no-cache');
+
+  if (matchesIfNoneMatch(req.get('if-none-match'), etag)) {
+    res.status(304).end();
+    return;
+  }
 
   res.json({ count: data.length, classes: data });
 });
