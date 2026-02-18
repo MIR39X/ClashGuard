@@ -500,10 +500,6 @@ const SelectPage = ({ sectionFilter, setSectionFilter, allClasses, setAllClasses
     );
   }, [allClasses, query, sectionFilter]);
 
-  const selectedClassEntries = useMemo(() => {
-    return selectedCourses.flatMap((item) => item.entries || []);
-  }, [selectedCourses]);
-
   const fetchClasses = async ({ silent = false } = {}) => {
     if (!silent) {
       setLoading(true);
@@ -563,8 +559,7 @@ const SelectPage = ({ sectionFilter, setSectionFilter, allClasses, setAllClasses
       setSelectedCourses((prev) => prev.filter((item) => item.key !== course.key));
       return;
     }
-    const entries = getEntriesForCourseKey(allClasses, course.key);
-    setSelectedCourses((prev) => [...prev, { ...course, entries }]);
+    setSelectedCourses((prev) => [...prev, { ...course }]);
   };
 
   return (
@@ -1013,7 +1008,6 @@ const AlternativesPage = ({ allClasses, selectedCourses, setSelectedCourses }) =
               section: option.section,
               teacher: option.teacher,
               slots: option.entries.length,
-              entries: option.entries,
             }
           : item,
       ),
@@ -1966,12 +1960,19 @@ function App() {
       const raw = JSON.parse(localStorage.getItem('clashguard_selected_courses') || '[]');
       return raw
         .map((item) => {
-        const fallback = item.entries?.[0] || item;
-        return { ...item, key: getCourseKey(fallback) };
+          const fallback = item.entries?.[0] || item;
+          const key = getCourseKey(fallback);
+          return {
+            key,
+            code: item.code || getCourseCode(fallback),
+            title: item.title || fallback?.title || key,
+            section: item.section || fallback?.section || '',
+            teacher: item.teacher || fallback?.teacher || '',
+            slots: Number(item.slots) || 0,
+          };
         })
         .filter((item) => {
-          const fallback = item.entries?.[0] || item;
-          return !isReservedOrPlaceholderClass(fallback);
+          return !isReservedOrPlaceholderClass(item);
         });
     } catch {
       return [];
@@ -2016,11 +2017,22 @@ function App() {
 
   useEffect(() => {
     setSelectedCourses((prev) => {
-      const valid = prev.filter((item) => {
-        const fallback = item.entries?.[0] || item;
-        return !isReservedOrPlaceholderClass(fallback);
-      });
-      return valid.length === prev.length ? prev : valid;
+      const normalized = prev
+        .map((item) => {
+          const key = getCourseKey(item);
+          const entries = getEntriesForCourseKey(allClasses, key);
+          const first = entries[0];
+          return {
+            key,
+            code: first ? getCourseCode(first) : item.code || '',
+            title: first?.title || item.title || key,
+            section: first?.section || item.section || '',
+            teacher: first?.teacher || item.teacher || '',
+            slots: entries.length || Number(item.slots) || 0,
+          };
+        })
+        .filter((item) => !isReservedOrPlaceholderClass(item));
+      return JSON.stringify(normalized) === JSON.stringify(prev) ? prev : normalized;
     });
   }, [allClasses]);
 

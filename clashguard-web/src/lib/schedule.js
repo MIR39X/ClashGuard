@@ -38,8 +38,6 @@ export const dedupeById = (rows) => {
 };
 
 export const selectedEntriesFromCourses = (selectedCourses, allClasses) => {
-  const fromSaved = selectedCourses.flatMap((item) => item.entries || []);
-  if (fromSaved.length > 0) return dedupeById(fromSaved);
   const keys = new Set(selectedCourses.map((item) => item.key));
   return dedupeById(allClasses.filter((item) => keys.has(getCourseKey(item))));
 };
@@ -58,4 +56,3 @@ export const buildClashes = (entries) => {
   }
   return list;
 };
-
