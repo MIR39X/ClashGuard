@@ -451,10 +451,12 @@ const SelectPage = ({ sectionFilter, setSectionFilter, allClasses, setAllClasses
   const CLASSES_ETAG_KEY = 'clashguard_all_classes_etag';
   const CLASSES_CACHE_TTL_MS = 15 * 60 * 1000;
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
   const [showSelectedModal, setShowSelectedModal] = useState(false);
+  const [showSelectionRequiredModal, setShowSelectionRequiredModal] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState(() => {
     const raw = Number(localStorage.getItem(CLASSES_FETCHED_AT_KEY) || '0');
     return Number.isFinite(raw) ? raw : 0;
@@ -554,12 +556,26 @@ const SelectPage = ({ sectionFilter, setSectionFilter, allClasses, setAllClasses
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (!location.state?.selectionRequired) return;
+    setShowSelectionRequiredModal(true);
+    navigate('/', { replace: true, state: null });
+  }, [location.state, navigate]);
+
   const toggleCourse = (course) => {
     if (selectedMap.has(course.key)) {
       setSelectedCourses((prev) => prev.filter((item) => item.key !== course.key));
       return;
     }
     setSelectedCourses((prev) => [...prev, { ...course }]);
+  };
+
+  const navigateWithSelectionCheck = (path) => {
+    if (selectedCourses.length < 1) {
+      setShowSelectionRequiredModal(true);
+      return;
+    }
+    navigate(path);
   };
 
   return (
@@ -612,14 +628,13 @@ const SelectPage = ({ sectionFilter, setSectionFilter, allClasses, setAllClasses
                 Show My Selected Courses
               </button>
               <button
-                onClick={() => navigate('/timetable')}
-                disabled={selectedCourses.length < 1}
+                onClick={() => navigateWithSelectionCheck('/timetable')}
                 className={`${BTN_BASE} flex h-12 w-full items-center justify-center whitespace-normal px-3 text-center text-[11px] leading-tight sm:h-14`}
               >
                 View My Timetable
               </button>
             </div>
-            <button onClick={() => navigate('/friends')} className={`${BTN_BASE} mt-2 w-full py-2 text-[11px]`}>
+            <button onClick={() => navigateWithSelectionCheck('/friends')} className={`${BTN_BASE} mt-2 w-full py-2 text-[11px]`}>
               Friends Free Slots
             </button>
           </div>
@@ -695,6 +710,22 @@ const SelectPage = ({ sectionFilter, setSectionFilter, allClasses, setAllClasses
           </div>
         </div>
       )}
+
+      {showSelectionRequiredModal && (
+        <div className="fixed inset-0 z-[60] grid place-items-center bg-black/35 p-2 sm:p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-signal/35 bg-white/95 p-4 shadow-[0_18px_40px_rgba(20,20,20,0.25)] md:p-5">
+            <h3 className="font-display text-3xl tracking-wide text-signal sm:text-4xl">SELECT COURSES FIRST</h3>
+            <p className="mt-2 text-sm uppercase tracking-[0.08em] text-ink/75">
+              Please add at least one course before opening timetable, clashes, alternatives, friends, or grades.
+            </p>
+            <div className="mt-4">
+              <button onClick={() => setShowSelectionRequiredModal(false)} className={`${BTN_BASE} w-full`}>
+                Okay
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Shell>
   );
 };
@@ -732,7 +763,7 @@ const TimetablePage = ({ allClasses, selectedCourses }) => {
   );
   const activeDayIndex = Math.max(0, dayTabs.findIndex((d) => d.value === activeDay));
 
-  if (selectedCourses.length < 1) return <Navigate to="/" replace />;
+  if (selectedCourses.length < 1) return <Navigate to="/" replace state={{ selectionRequired: true }} />;
 
   return (
     <Shell>
@@ -855,7 +886,7 @@ const ClashReportPage = ({ allClasses, selectedCourses }) => {
   );
   const clashes = useMemo(() => buildClashes(selectedEntries), [selectedEntries]);
 
-  if (selectedCourses.length < 1) return <Navigate to="/" replace />;
+  if (selectedCourses.length < 1) return <Navigate to="/" replace state={{ selectionRequired: true }} />;
 
   return (
     <Shell>
@@ -1015,7 +1046,7 @@ const AlternativesPage = ({ allClasses, selectedCourses, setSelectedCourses }) =
     setAppliedMsg(`Applied alternative: ${option.title}`);
   };
 
-  if (selectedCourses.length < 1) return <Navigate to="/" replace />;
+  if (selectedCourses.length < 1) return <Navigate to="/" replace state={{ selectionRequired: true }} />;
 
   return (
     <Shell>
@@ -1193,7 +1224,7 @@ const GradesPage = ({ selectedCourses, gradesData, gradeRanges }) => {
     return credits > 0 ? weightedPoints / credits : 0;
   }, [gradesData, gradeRanges, selectedCourses]);
 
-  if (selectedCourses.length < 1) return <Navigate to="/" replace />;
+  if (selectedCourses.length < 1) return <Navigate to="/" replace state={{ selectionRequired: true }} />;
 
   return (
     <Shell>
@@ -1311,7 +1342,7 @@ const GradeCoursePage = ({ selectedCourses, gradesData, setGradesData, gradeRang
     upsertCourseGrade((current) => ({ ...current, selectedGrade: value }));
   };
 
-  if (selectedCourses.length < 1) return <Navigate to="/" replace />;
+  if (selectedCourses.length < 1) return <Navigate to="/" replace state={{ selectionRequired: true }} />;
   if (!course) return <Navigate to="/grades" replace />;
 
   const courseGrade = gradesData[courseKey] || { targetWeightage: '', selectedGrade: '', components: [createGradeComponent()] };
@@ -1824,6 +1855,8 @@ const FriendsPage = ({ allClasses, selectedCourses, friends, setFriends }) => {
     setFriends((prev) => prev.filter((f) => f.id !== id));
     if (selectedFriendId === id) setSelectedFriendId('');
   };
+
+  if (selectedCourses.length < 1) return <Navigate to="/" replace state={{ selectionRequired: true }} />;
 
   return (
     <Shell>
