@@ -29,6 +29,9 @@ const WEEK_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const FREE_WINDOW_START = 8 * 60;
 const FREE_WINDOW_END = 16 * 60;
 const MIN_FREE_SLOT_MINUTES = 10;
+const CLASSES_FETCHED_AT_KEY = 'clashguard_all_classes_fetched_at';
+const CLASSES_ETAG_KEY = 'clashguard_all_classes_etag';
+const CLASSES_CACHE_TTL_MS = 15 * 60 * 1000;
 const BTN_BASE =
   'rounded-lg border border-signal px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-signal transition hover:bg-signal hover:text-white disabled:cursor-not-allowed disabled:border-signal/30 disabled:text-signal/35';
 const ALT_LIMITS = ['5', '10', '20', 'all'];
@@ -447,9 +450,6 @@ const Shell = ({ children }) => {
 };
 
 const SelectPage = ({ sectionFilter, setSectionFilter, allClasses, setAllClasses, selectedCourses, setSelectedCourses }) => {
-  const CLASSES_FETCHED_AT_KEY = 'clashguard_all_classes_fetched_at';
-  const CLASSES_ETAG_KEY = 'clashguard_all_classes_etag';
-  const CLASSES_CACHE_TTL_MS = 15 * 60 * 1000;
   const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(false);
@@ -2035,6 +2035,44 @@ function App() {
       return [];
     }
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchClassesIfNeeded = async () => {
+      const hasCache = allClasses.length > 0;
+      const lastFetchedAt = Number(localStorage.getItem(CLASSES_FETCHED_AT_KEY) || '0');
+      const cacheAge = Date.now() - (Number.isFinite(lastFetchedAt) ? lastFetchedAt : 0);
+      const shouldFetch = !hasCache || cacheAge > CLASSES_CACHE_TTL_MS;
+      if (!shouldFetch) return;
+
+      try {
+        const knownEtag = localStorage.getItem(CLASSES_ETAG_KEY);
+        const headers = knownEtag ? { 'If-None-Match': knownEtag } : {};
+        const response = await fetch(`${API_BASE}/classes`, { headers });
+        const responseEtag = response.headers.get('etag');
+
+        if (response.status === 304) {
+          localStorage.setItem(CLASSES_FETCHED_AT_KEY, String(Date.now()));
+          if (responseEtag) localStorage.setItem(CLASSES_ETAG_KEY, responseEtag);
+          return;
+        }
+
+        const data = await response.json();
+        if (!response.ok) return;
+        const cleaned = (data.classes || []).filter((item) => !isReservedOrPlaceholderClass(item));
+        if (!cancelled) setAllClasses(cleaned);
+        localStorage.setItem(CLASSES_FETCHED_AT_KEY, String(Date.now()));
+        if (responseEtag) localStorage.setItem(CLASSES_ETAG_KEY, responseEtag);
+      } catch {
+        // keep cached classes on network failures
+      }
+    };
+
+    fetchClassesIfNeeded();
+    return () => {
+      cancelled = true;
+    };
+  }, [allClasses.length]);
 
   useEffect(() => {
     localStorage.setItem('clashguard_section_filter', sectionFilter);
