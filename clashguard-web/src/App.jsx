@@ -266,6 +266,16 @@ const isReservedOrPlaceholderClass = (item) => {
   return false;
 };
 
+const getStableSelectedKey = (item) => {
+  const existingKey = String(item?.key || '').trim();
+  if (existingKey) return existingKey.toUpperCase();
+  return getCourseKey({
+    course: item?.code || item?.course || '',
+    section: item?.section || '',
+    title: item?.title || '',
+  });
+};
+
 const MobileBottomNav = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -1994,7 +2004,13 @@ function App() {
       return raw
         .map((item) => {
           const fallback = item.entries?.[0] || item;
-          const key = getCourseKey(fallback);
+          const key = getStableSelectedKey({
+            ...fallback,
+            key: item.key,
+            code: item.code || fallback?.course,
+            section: item.section || fallback?.section,
+            title: item.title || fallback?.title,
+          });
           return {
             key,
             code: item.code || getCourseCode(fallback),
@@ -2090,7 +2106,7 @@ function App() {
     setSelectedCourses((prev) => {
       const normalized = prev
         .map((item) => {
-          const key = getCourseKey(item);
+          const key = getStableSelectedKey(item);
           const entries = getEntriesForCourseKey(allClasses, key);
           const first = entries[0];
           return {
