@@ -4,9 +4,9 @@
 @theme {
   --font-display: "Bebas Neue", sans-serif;
   --font-ui: "Space Grotesk", sans-serif;
-  --color-ash: #e3e2de;
-  --color-ink: #141414;
-  --color-signal: #ff3a20;
+  --color-ash: #e7edf7;
+  --color-ink: #1e2a3b;
+  --color-signal: #4256b8;
 }
 
 * {
@@ -22,8 +22,10 @@ body,
 body {
   margin: 0;
   font-family: var(--font-ui);
-  background: radial-gradient(circle at 15% 10%, #f3c9c2 0%, transparent 40%),
-    radial-gradient(circle at 80% 80%, #d2e2ff 0%, transparent 36%), var(--color-ash);
+  background:
+    radial-gradient(circle at 12% 8%, rgba(74, 124, 214, 0.2) 0%, transparent 38%),
+    radial-gradient(circle at 86% 84%, rgba(30, 103, 135, 0.16) 0%, transparent 36%),
+    linear-gradient(180deg, #d9e3f3 0%, #d3deef 100%);
   color: var(--color-ink);
 }
 
@@ -63,4 +65,8 @@ body {
 
 .themed-scroll::-webkit-scrollbar {
   display: none;
+}
+
+.theme-logo {
+  filter: hue-rotate(168deg) saturate(0.72) brightness(0.9);
 }

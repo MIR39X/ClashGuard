@@ -1,6 +1,13 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import App from './App';
 
+const mockClassesResponse = (classes) => ({
+  ok: true,
+  status: 200,
+  headers: { get: () => null },
+  json: async () => ({ classes }),
+});
+
 const mockClasses = [
   {
     id: 'c1',
@@ -114,6 +121,22 @@ const filterClasses = [
   },
 ];
 
+const gradeClasses = [
+  {
+    id: 'g1',
+    title: 'MT2005-Prob BDS-4A',
+    course: 'MT2005',
+    section: 'BDS-4A',
+    teacher: 'Syed Ashad',
+    room: 'C-18 Academic Block II (50)',
+    day: 'Monday',
+    start: '12:40',
+    end: '01:15',
+    startMinutes: 760,
+    endMinutes: 795,
+  },
+];
+
 describe('App flow', () => {
   beforeEach(() => {
     try {
@@ -121,10 +144,7 @@ describe('App flow', () => {
     } catch {
       // ignore storage reset issues in constrained test envs
     }
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ classes: mockClasses }),
-    });
+    global.fetch = vi.fn().mockResolvedValue(mockClassesResponse(mockClasses));
   });
 
   test('select course and open timetable', async () => {
@@ -141,10 +161,7 @@ describe('App flow', () => {
   });
 
   test('apply alternative updates selected course in timetable', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ classes: clashClasses }),
-    });
+    global.fetch = vi.fn().mockResolvedValue(mockClassesResponse(clashClasses));
 
     render(<App />);
 
@@ -164,10 +181,11 @@ describe('App flow', () => {
     await screen.findByText(/\[04\]_ALTERNATIVES/i);
     expect(screen.getByText('MT2005-Prob BDS-4B')).toBeInTheDocument();
 
-    const altCard = screen.getByText('MT2005-Prob BDS-4B').closest('div');
-    fireEvent.click(within(altCard).getByRole('button', { name: /Apply Alternative/i }));
+    fireEvent.click(screen.getAllByRole('button', { name: /Apply Alternative/i })[0]);
 
-    fireEvent.click(screen.getByRole('button', { name: /Back To Timetable/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Back To Selection/i }));
+    await screen.findByText(/SELECT\s*MY COURSES/i);
+    fireEvent.click(screen.getByRole('button', { name: /View My Timetable/i }));
     await screen.findByText(/\[02\]_MY TIMETABLE/i);
 
     expect(screen.getAllByText('MT2005-Prob BDS-4B').length).toBeGreaterThan(0);
@@ -175,10 +193,7 @@ describe('App flow', () => {
   });
 
   test('section filter narrows available courses list', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ classes: filterClasses }),
-    });
+    global.fetch = vi.fn().mockResolvedValue(mockClassesResponse(filterClasses));
 
     render(<App />);
     await screen.findByText('CS2005-DBS BCS-4K');
@@ -192,10 +207,7 @@ describe('App flow', () => {
   });
 
   test('clash report count and teacher-filtered alternatives are shown', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ classes: clashClasses }),
-    });
+    global.fetch = vi.fn().mockResolvedValue(mockClassesResponse(clashClasses));
 
     render(<App />);
     await screen.findByText('MT2005-Prob BDS-4A');
@@ -220,5 +232,70 @@ describe('App flow', () => {
       expect(screen.getByText('MT2005-Prob BDS-4C')).toBeInTheDocument();
     });
     expect(screen.queryByText('MT2005-Prob BDS-4B')).not.toBeInTheDocument();
+  });
+
+  test('grade page supports adding components and custom weightage calculations', async () => {
+    global.fetch = vi.fn().mockResolvedValue(mockClassesResponse(gradeClasses));
+
+    render(<App />);
+    await screen.findByText('MT2005-Prob BDS-4A');
+
+    fireEvent.click(within(screen.getByText('MT2005-Prob BDS-4A').closest('article')).getByRole('button', { name: 'Add' }));
+    fireEvent.click(screen.getByRole('button', { name: /View My Timetable/i }));
+    await screen.findByText(/\[02\]_MY TIMETABLE/i);
+
+    fireEvent.click(screen.getAllByRole('button', { name: /^Grades$/i })[0]);
+    await screen.findByText(/\[05\]_GRADES/i);
+
+    fireEvent.click(screen.getByRole('button', { name: /MT2005-Prob BDS-4A/i }));
+    await screen.findByText(/\[05\]_COURSE GRADE/i);
+
+    const weightInputs = screen.getAllByPlaceholderText('e.g. 20');
+    const scoreInputs = screen.getAllByPlaceholderText('17');
+    const totalInputs = screen.getAllByPlaceholderText('25');
+
+    fireEvent.change(weightInputs[0], { target: { value: '40' } });
+    fireEvent.change(scoreInputs[0], { target: { value: '30' } });
+    fireEvent.change(totalInputs[0], { target: { value: '40' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Add Component/i }));
+
+    const weightInputsAfter = screen.getAllByPlaceholderText('e.g. 20');
+    const scoreInputsAfter = screen.getAllByPlaceholderText('17');
+    const totalInputsAfter = screen.getAllByPlaceholderText('25');
+
+    fireEvent.change(weightInputsAfter[1], { target: { value: '60' } });
+    fireEvent.change(scoreInputsAfter[1], { target: { value: '45' } });
+    fireEvent.change(totalInputsAfter[1], { target: { value: '60' } });
+
+    expect(screen.getByText(/Configured Weight:/i)).toBeInTheDocument();
+    expect(screen.getByText('100.00%')).toBeInTheDocument();
+    expect(screen.getByText(/Achieved Points:/i)).toBeInTheDocument();
+    expect(screen.getByText('75.00')).toBeInTheDocument();
+  });
+
+  test('custom course grade dropdown updates selected grade', async () => {
+    global.fetch = vi.fn().mockResolvedValue(mockClassesResponse(gradeClasses));
+
+    render(<App />);
+    await screen.findByText('MT2005-Prob BDS-4A');
+
+    fireEvent.click(within(screen.getByText('MT2005-Prob BDS-4A').closest('article')).getByRole('button', { name: 'Add' }));
+    fireEvent.click(screen.getByRole('button', { name: /View My Timetable/i }));
+    await screen.findByText(/\[02\]_MY TIMETABLE/i);
+
+    fireEvent.click(screen.getAllByRole('button', { name: /^Grades$/i })[0]);
+    await screen.findByText(/\[05\]_GRADES/i);
+
+    fireEvent.click(screen.getByRole('button', { name: /MT2005-Prob BDS-4A/i }));
+    await screen.findByText(/\[05\]_COURSE GRADE/i);
+
+    fireEvent.click(screen.getByRole('button', { name: /Select grade/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'B+' }));
+
+    fireEvent.click(screen.getByRole('button', { name: /^Back$/i }));
+    await screen.findByText(/\[05\]_GRADES/i);
+
+    expect(screen.getByText('B+')).toBeInTheDocument();
   });
 });

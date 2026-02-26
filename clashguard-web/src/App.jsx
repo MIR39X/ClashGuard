@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   buildClashes,
@@ -60,15 +60,17 @@ const DEFAULT_GRADE_RANGES = [
   { id: 'F', label: 'F', min: 0, max: 49.99, gpa: 0.0 },
 ];
 
-const createGradeComponent = () => ({
+const createGradeComponent = (initial = {}) => ({
   id: `cmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-  name: '',
-  weight: '',
+  name: initial.name || '',
+  weight: initial.weight ?? '',
   score: '',
   total: '',
 });
 
 const toNumber = (value) => {
+  if (value === null || value === undefined) return NaN;
+  if (typeof value === 'string' && value.trim() === '') return NaN;
   const n = Number(value);
   return Number.isFinite(n) ? n : NaN;
 };
@@ -160,6 +162,52 @@ const percentToLetter = (percent, gradeRanges) => {
     .sort((a, b) => b.min - a.min);
   const matched = ranges.find((r) => percent >= r.min && percent <= r.max);
   return matched ? matched.label : '';
+};
+
+const isFullyCompletedCourse = (stats) =>
+  Number.isFinite(stats?.totalWeight) &&
+  Number.isFinite(stats?.completedWeight) &&
+  stats.totalWeight > 0 &&
+  Math.abs(stats.totalWeight - 100) <= 0.01 &&
+  Math.abs(stats.completedWeight - stats.totalWeight) <= 0.01;
+
+const achievedPercentFromStats = (stats) => {
+  if (!Number.isFinite(stats?.achievedPoints) || !Number.isFinite(stats?.totalWeight) || stats.totalWeight <= 0) return NaN;
+  return (stats.achievedPoints / stats.totalWeight) * 100;
+};
+
+const getEffectiveCreditHours = (course, courseCredits) => {
+  const manual = Number(courseCredits?.[course?.key]);
+  if (Number.isFinite(manual) && manual > 0) return manual;
+  return Math.max(1, Number(course?.slots) || 1);
+};
+
+const buildDefaultGradeComponents = (creditHours) => {
+  if (Number(creditHours) === 1) {
+    return [
+      createGradeComponent({ name: 'Mid Term', weight: '25' }),
+      createGradeComponent({ name: 'Lab Tasks', weight: '25' }),
+      createGradeComponent({ name: 'Final', weight: '50' }),
+    ];
+  }
+  return [
+    createGradeComponent({ name: 'Mid Term 1', weight: '15' }),
+    createGradeComponent({ name: 'Mid Term 2', weight: '15' }),
+    createGradeComponent({ name: 'Quizzes', weight: '10' }),
+    createGradeComponent({ name: 'Assignments', weight: '10' }),
+    createGradeComponent({ name: 'Final', weight: '50' }),
+  ];
+};
+
+const hasOnlyBlankComponents = (components) => {
+  if (!Array.isArray(components) || components.length === 0) return true;
+  return components.every((cmp) => {
+    const name = String(cmp?.name || '').trim();
+    const weight = String(cmp?.weight ?? '').trim();
+    const score = String(cmp?.score ?? '').trim();
+    const total = String(cmp?.total ?? '').trim();
+    return !name && !weight && !score && !total;
+  });
 };
 
 const minutesToLabel = (mins) => {
@@ -314,7 +362,7 @@ const MobileBottomNav = () => {
           style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
         >
           <span
-            className="pointer-events-none absolute top-1 left-1 h-[calc(100%-8px)] transform-gpu rounded-lg bg-signal shadow-[0_6px_14px_rgba(255,58,32,0.3)] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+            className="pointer-events-none absolute top-1 left-1 h-[calc(100%-8px)] transform-gpu rounded-lg bg-signal shadow-[0_6px_14px_rgba(66,86,184,0.28)] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
             style={{
               opacity: currentIndex >= 0 ? 1 : 0,
               width: `calc((100% - 8px) / ${items.length})`,
@@ -369,10 +417,10 @@ const Shell = ({ children }) => {
           <img
             src={HEADER_MOBILE_LOGO}
             alt="ClashGuard"
-            className="pointer-events-none absolute left-1/2 top-1/2 h-28 w-28 -translate-x-1/2 -translate-y-1/2 object-contain sm:hidden"
+            className="theme-logo pointer-events-none absolute left-1/2 top-1/2 h-28 w-28 -translate-x-1/2 -translate-y-1/2 object-contain sm:hidden"
           />
           <div className="pointer-events-none absolute left-1/2 top-[calc(50%+10px)] hidden -translate-x-1/2 -translate-y-1/2 sm:block">
-            <img src={HEADER_WEBSITE_LOGO} alt="ClashGuard" className="h-40 w-auto max-w-[1400px] object-contain" />
+            <img src={HEADER_WEBSITE_LOGO} alt="ClashGuard" className="theme-logo h-40 w-auto max-w-[1400px] object-contain" />
           </div>
           <div className="ml-auto flex min-w-0 items-center gap-2">
             <p className="hidden truncate text-[10px] tracking-[0.22em] text-signal lg:block lg:text-xs lg:tracking-[0.3em]">
@@ -444,12 +492,6 @@ const Shell = ({ children }) => {
                   className="rounded-lg border border-signal/30 bg-white px-3 py-2 text-sm font-semibold text-signal hover:bg-signal/10"
                 >
                   GitHub
-                </a>
-                <a
-                  href={`mailto:${ABOUT_ME.email}`}
-                  className="rounded-lg border border-signal/30 bg-white px-3 py-2 text-sm font-semibold text-signal hover:bg-signal/10"
-                >
-                  Email Me
                 </a>
               </div>
             </div>
@@ -784,17 +826,20 @@ const TimetablePage = ({ allClasses, selectedCourses }) => {
               [02]_MY TIMETABLE
             </h1>
             <div className="hidden w-full gap-2 sm:grid sm:w-auto sm:grid-flow-col sm:auto-cols-max">
+              <button onClick={() => navigate('/timetable')} className={`${BTN_BASE} bg-signal text-white`}>
+                Timetable
+              </button>
               <button onClick={() => navigate('/clashes')} className={BTN_BASE}>
                 Clash Report
               </button>
-              <button onClick={() => navigate('/friends')} className={BTN_BASE}>
-                Friends
+              <button onClick={() => navigate('/alternatives')} className={BTN_BASE}>
+                Alternatives
               </button>
               <button onClick={() => navigate('/grades')} className={BTN_BASE}>
                 Grades
               </button>
-              <button onClick={() => navigate('/alternatives')} className={BTN_BASE}>
-                Alternatives
+              <button onClick={() => navigate('/friends')} className={BTN_BASE}>
+                Friends
               </button>
               <button onClick={() => navigate('/')} className={BTN_BASE}>
                 Back To Selection
@@ -819,7 +864,7 @@ const TimetablePage = ({ allClasses, selectedCourses }) => {
                   style={{ gridTemplateColumns: `repeat(${dayTabs.length}, minmax(0, 1fr))` }}
                 >
                   <span
-                    className="absolute top-1 h-[calc(100%-8px)] rounded-xl bg-signal shadow-[0_10px_22px_rgba(255,58,32,0.32)] transition-transform duration-300 ease-out"
+                    className="absolute top-1 h-[calc(100%-8px)] rounded-xl bg-signal shadow-[0_10px_22px_rgba(66,86,184,0.28)] transition-transform duration-300 ease-out"
                     style={{
                       left: '4px',
                       width: `calc((100% - 8px) / ${dayTabs.length})`,
@@ -855,23 +900,18 @@ const TimetablePage = ({ allClasses, selectedCourses }) => {
                   <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                     {entries.map((item) => (
                       <article key={item.id} className="rounded-xl border border-signal/20 bg-white p-4">
-                        <div className="mb-2 flex items-center justify-between">
-                          <span className="rounded-full border border-signal/25 bg-signal/5 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-signal">
-                            {day}
-                          </span>
-                          <span className="rounded-full border border-ink/20 bg-ash px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink">
+                        <div className="mb-2 flex items-start justify-between gap-2">
+                          <p className="text-xl font-semibold tracking-tight text-ink">{item.title}</p>
+                          <span className="shrink-0 rounded-full border border-ink/25 bg-ash px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
                             {item.start}-{item.end}
                           </span>
                         </div>
-                        <p className="text-xl font-semibold tracking-tight text-ink">{item.title}</p>
                         <div className="mt-2 rounded-lg border border-signal/25 bg-signal/5 px-3 py-2">
                           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-signal/80">Location</p>
                           <p className="mt-1 text-sm font-semibold text-ink">{item.room}</p>
+                          <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-signal/80">Instructor</p>
+                          <p className="mt-1 text-sm font-semibold text-ink/95">{item.teacher || 'Unknown Teacher'}</p>
                         </div>
-                        <p className="mt-2 text-sm text-ink/80">
-                          Instructor: {item.teacher || 'Unknown Teacher'}
-                        </p>
-                        <p className="mt-0.5 text-sm text-ink/80">Time Slot: {item.start}-{item.end}</p>
                       </article>
                     ))}
                   </div>
@@ -907,14 +947,23 @@ const ClashReportPage = ({ allClasses, selectedCourses }) => {
               [03]_CLASH REPORT
             </h1>
             <div className="hidden w-full gap-2 sm:grid sm:w-auto sm:grid-flow-col sm:auto-cols-max">
-              <button onClick={() => navigate('/grades')} className={BTN_BASE}>
-                Grades
+              <button onClick={() => navigate('/timetable')} className={BTN_BASE}>
+                Timetable
+              </button>
+              <button onClick={() => navigate('/clashes')} className={`${BTN_BASE} bg-signal text-white`}>
+                Clash Report
               </button>
               <button onClick={() => navigate('/alternatives')} className={BTN_BASE}>
                 Alternatives
               </button>
-              <button onClick={() => navigate('/timetable')} className={BTN_BASE}>
-                Back To Timetable
+              <button onClick={() => navigate('/grades')} className={BTN_BASE}>
+                Grades
+              </button>
+              <button onClick={() => navigate('/friends')} className={BTN_BASE}>
+                Friends
+              </button>
+              <button onClick={() => navigate('/')} className={BTN_BASE}>
+                Back To Selection
               </button>
             </div>
           </div>
@@ -930,19 +979,29 @@ const ClashReportPage = ({ allClasses, selectedCourses }) => {
             <div className="mt-4 grid gap-3">
               {clashes.map((clash, idx) => (
                 <article key={`${clash.a.id}-${clash.b.id}-${idx}`} className="rounded-xl border border-signal/25 bg-white p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-signal">
-                    {clash.a.day} | {clash.a.start}-{clash.a.end}
-                  </p>
+                  <div className="inline-flex rounded-md border border-signal/30 bg-signal/8 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-signal">
+                    Clash {idx + 1}: {clash.a.title} vs {clash.b.title}
+                  </div>
                   <div className="mt-2 grid gap-3 md:grid-cols-2">
-                    <div>
+                    <div className="rounded-lg border border-signal/20 bg-signal/5 p-3">
                       <p className="text-sm font-semibold text-ink">{clash.a.title}</p>
-                      <p className="text-xs text-ink/70">{clash.a.room}</p>
-                      <p className="text-xs text-ink/70">{clash.a.teacher || 'Unknown Teacher'}</p>
+                      <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-signal">
+                        {clash.a.day} | {clash.a.start}-{clash.a.end}
+                      </p>
+                      <p className="mt-1 text-xs text-ink/70">{clash.a.room}</p>
+                      <p className="mt-1 text-xs text-ink/70">
+                        Instructor: <span className="font-bold text-ink">{clash.a.teacher || 'Unknown Teacher'}</span>
+                      </p>
                     </div>
-                    <div>
+                    <div className="rounded-lg border border-signal/20 bg-signal/5 p-3">
                       <p className="text-sm font-semibold text-ink">{clash.b.title}</p>
-                      <p className="text-xs text-ink/70">{clash.b.room}</p>
-                      <p className="text-xs text-ink/70">{clash.b.teacher || 'Unknown Teacher'}</p>
+                      <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-signal">
+                        {clash.b.day} | {clash.b.start}-{clash.b.end}
+                      </p>
+                      <p className="mt-1 text-xs text-ink/70">{clash.b.room}</p>
+                      <p className="mt-1 text-xs text-ink/70">
+                        Instructor: <span className="font-bold text-ink">{clash.b.teacher || 'Unknown Teacher'}</span>
+                      </p>
                     </div>
                   </div>
                 </article>
@@ -1067,14 +1126,23 @@ const AlternativesPage = ({ allClasses, selectedCourses, setSelectedCourses }) =
               [04]_ALTERNATIVES
             </h1>
             <div className="hidden w-full gap-2 sm:grid sm:w-auto sm:grid-flow-col sm:auto-cols-max">
-              <button onClick={() => navigate('/grades')} className={BTN_BASE}>
-                Grades
+              <button onClick={() => navigate('/timetable')} className={BTN_BASE}>
+                Timetable
               </button>
               <button onClick={() => navigate('/clashes')} className={BTN_BASE}>
                 Clash Report
               </button>
-              <button onClick={() => navigate('/timetable')} className={BTN_BASE}>
-                Back To Timetable
+              <button onClick={() => navigate('/alternatives')} className={`${BTN_BASE} bg-signal text-white`}>
+                Alternatives
+              </button>
+              <button onClick={() => navigate('/grades')} className={BTN_BASE}>
+                Grades
+              </button>
+              <button onClick={() => navigate('/friends')} className={BTN_BASE}>
+                Friends
+              </button>
+              <button onClick={() => navigate('/')} className={BTN_BASE}>
+                Back To Selection
               </button>
             </div>
           </div>
@@ -1087,7 +1155,7 @@ const AlternativesPage = ({ allClasses, selectedCourses, setSelectedCourses }) =
             />
             <div className="relative grid min-w-[230px] grid-cols-4 rounded-xl border border-signal/35 bg-white/90 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
               <span
-                className="absolute top-1 h-[calc(100%-8px)] rounded-lg bg-signal shadow-[0_8px_20px_rgba(255,58,32,0.28)] transition-transform duration-300 ease-out"
+                className="absolute top-1 h-[calc(100%-8px)] rounded-lg bg-signal shadow-[0_8px_20px_rgba(66,86,184,0.25)] transition-transform duration-300 ease-out"
                 style={{
                   left: '4px',
                   width: `calc((100% - 8px) / ${ALT_LIMITS.length})`,
@@ -1140,41 +1208,23 @@ const AlternativesPage = ({ allClasses, selectedCourses, setSelectedCourses }) =
                             <p className="mt-1 text-sm font-semibold text-ink">{option.teacher || 'Unknown Teacher'}</p>
                           </div>
                           <div className="mt-2 rounded-md border border-ink/15 bg-white px-2 py-2">
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink/70">Time Slots</p>
-                            <div className="mt-1 flex flex-wrap gap-1">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink/70">Schedule/Venue</p>
+                            <div className="mt-1 divide-y divide-ink/10">
                               {option.entries.map((slot) => (
-                                <span
-                                  key={slot.id}
-                                  className="rounded-full border border-ink/20 bg-ash px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink/75"
-                                >
-                                  {slot.day} {slot.start}-{slot.end}
-                                </span>
+                                <div key={slot.id} className="py-1.5 first:pt-0 last:pb-0">
+                                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-signal/85">
+                                    {slot.day} - {slot.start}-{slot.end}
+                                  </p>
+                                  <p className="mt-0.5 text-[11px] font-medium leading-4 text-ink/85">
+                                    {slot.room || 'Room N/A'}
+                                  </p>
+                                </div>
                               ))}
                             </div>
                           </div>
-                          <div className="mt-2 rounded-md border border-ink/15 bg-white px-2 py-2">
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink/70">Venues</p>
-                            <div className="mt-1 flex flex-wrap gap-1">
-                              {[...new Set(option.entries.map((slot) => slot.room).filter(Boolean))].map((room) => (
-                                <span
-                                  key={room}
-                                  className="rounded-full border border-ink/20 bg-ash px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink/75"
-                                >
-                                  {room}
-                                </span>
-                              ))}
-                            </div>
+                          <div className="mt-2 flex w-fit rounded-md border border-signal/35 bg-signal/10 px-2.5 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-signal">
+                            Section: {option.section || 'N/A'}
                           </div>
-                          <p className="mt-2 text-xs uppercase text-ink/65">
-                            Section: {option.section || 'N/A'} | Time Slots: {option.entries.length}
-                          </p>
-                          <p
-                            className={`mt-1 text-xs font-semibold uppercase ${
-                              option.conflictCount === 0 ? 'text-emerald-700' : 'text-amber-700'
-                            }`}
-                          >
-                            Conflicts if switched: {option.conflictCount}
-                          </p>
                           {option.conflictCount > 0 && (
                             <div className="mt-2 rounded-md border border-amber-300/60 bg-amber-50 p-2">
                               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-700">
@@ -1209,21 +1259,30 @@ const AlternativesPage = ({ allClasses, selectedCourses, setSelectedCourses }) =
   );
 };
 
-const GradesPage = ({ selectedCourses, gradesData, gradeRanges }) => {
+const GradesPage = ({ selectedCourses, gradesData, gradeRanges, courseCredits, setCourseCredits }) => {
   const navigate = useNavigate();
+  const totalCreditHours = useMemo(
+    () => selectedCourses.reduce((sum, course) => sum + getEffectiveCreditHours(course, courseCredits), 0),
+    [courseCredits, selectedCourses],
+  );
   const termGpa = useMemo(() => {
     if (selectedCourses.length === 0) return 0;
     let weightedPoints = 0;
     let credits = 0;
     selectedCourses.forEach((course) => {
       const courseGrade = gradesData[course.key] || {};
-      const creditHours = Math.max(1, Number(course.slots) || 1);
+      const creditHours = getEffectiveCreditHours(course, courseCredits);
       let points = 0;
+      const stats = calculateCourseStats(courseGrade, gradeRanges);
+      const fullyCompleted = isFullyCompletedCourse(stats);
+      const achievedPercent = achievedPercentFromStats(stats);
       const selectedGrade = String(courseGrade.selectedGrade || '').trim();
-      if (selectedGrade) {
+
+      if (fullyCompleted && Number.isFinite(achievedPercent)) {
+        points = percentToGpa(achievedPercent, gradeRanges);
+      } else if (selectedGrade) {
         points = letterGradeToGpa(selectedGrade, gradeRanges);
       } else {
-        const stats = calculateCourseStats(courseGrade, gradeRanges);
         const target = stats.targetPercent;
         if (!Number.isFinite(target)) return;
         points = percentToGpa(target, gradeRanges);
@@ -1232,7 +1291,7 @@ const GradesPage = ({ selectedCourses, gradesData, gradeRanges }) => {
       credits += creditHours;
     });
     return credits > 0 ? weightedPoints / credits : 0;
-  }, [gradesData, gradeRanges, selectedCourses]);
+  }, [courseCredits, gradesData, gradeRanges, selectedCourses]);
 
   if (selectedCourses.length < 1) return <Navigate to="/" replace state={{ selectionRequired: true }} />;
 
@@ -1245,11 +1304,23 @@ const GradesPage = ({ selectedCourses, gradesData, gradeRanges }) => {
               [05]_GRADES
             </h1>
             <div className="hidden w-full gap-2 sm:grid sm:w-auto sm:grid-flow-col sm:auto-cols-max">
-              <button onClick={() => navigate('/settings')} className={BTN_BASE}>
-                Settings
-              </button>
               <button onClick={() => navigate('/timetable')} className={BTN_BASE}>
                 Timetable
+              </button>
+              <button onClick={() => navigate('/clashes')} className={BTN_BASE}>
+                Clash Report
+              </button>
+              <button onClick={() => navigate('/alternatives')} className={BTN_BASE}>
+                Alternatives
+              </button>
+              <button onClick={() => navigate('/grades')} className={`${BTN_BASE} bg-signal text-white`}>
+                Grades
+              </button>
+              <button onClick={() => navigate('/friends')} className={BTN_BASE}>
+                Friends
+              </button>
+              <button onClick={() => navigate('/')} className={BTN_BASE}>
+                Back To Selection
               </button>
             </div>
           </div>
@@ -1257,8 +1328,11 @@ const GradesPage = ({ selectedCourses, gradesData, gradeRanges }) => {
           <div className="mt-3 rounded-xl border border-signal/30 bg-white/80 p-4">
             <p className="text-xs uppercase tracking-[0.2em] text-ink/65">Estimated Term GPA</p>
             <p className="mt-1 text-4xl font-semibold text-signal">{termGpa.toFixed(2)}</p>
+            <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink/70">
+              Total Credit Hours: {totalCreditHours}
+            </p>
             <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-ink/60">
-              Uses selected course grade first, otherwise target weightage
+              Uses achieved grade when course is fully completed; otherwise selected grade or target weightage
             </p>
             <button onClick={() => navigate('/settings')} className={`${BTN_BASE} mt-3 w-full sm:hidden`}>
               Settings
@@ -1268,8 +1342,18 @@ const GradesPage = ({ selectedCourses, gradesData, gradeRanges }) => {
           <div className="mt-4 grid gap-2">
             {selectedCourses.map((course) => {
               const stats = calculateCourseStats(gradesData[course.key] || {}, gradeRanges);
+              const fullyCompleted = isFullyCompletedCourse(stats);
+              const achievedPercent = achievedPercentFromStats(stats);
+              const achievedGrade = percentToLetter(achievedPercent, gradeRanges);
+              const defaultCredits = Math.max(1, Number(course.slots) || 1);
+              const manualCredits = Number(courseCredits?.[course.key]);
+              const effectiveCredits = getEffectiveCreditHours(course, courseCredits);
+              const hasManualOverride =
+                Number.isFinite(manualCredits) &&
+                manualCredits > 0 &&
+                Math.abs(manualCredits - defaultCredits) > 0.01;
               const required =
-                Number.isFinite(stats.targetPercent) && Number.isFinite(stats.requiredAverage)
+                !fullyCompleted && Number.isFinite(stats.targetPercent) && Number.isFinite(stats.requiredAverage)
                   ? stats.isImpossible
                     ? 'Impossible target'
                     : stats.alreadySafe
@@ -1279,7 +1363,7 @@ const GradesPage = ({ selectedCourses, gradesData, gradeRanges }) => {
               const selectedGrade = String((gradesData[course.key] || {}).selectedGrade || '').trim();
               const targetGrade = String((gradesData[course.key] || {}).targetGrade || '').trim();
               const inferredGrade = percentToLetter(stats.targetPercent, gradeRanges);
-              const resolvedGrade = selectedGrade || targetGrade || inferredGrade || '--';
+              const resolvedGrade = fullyCompleted ? (achievedGrade || '--') : (selectedGrade || targetGrade || inferredGrade || '--');
               return (
                 <button
                   key={course.key}
@@ -1292,11 +1376,45 @@ const GradesPage = ({ selectedCourses, gradesData, gradeRanges }) => {
                       <p className="text-xs uppercase text-ink/65">
                         {course.code} | {course.section || 'N/A'}
                       </p>
+                      <div
+                        className="mt-2 flex w-fit items-center gap-2 rounded-md border border-signal/20 bg-signal/5 px-2 py-1"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <label htmlFor={`credits-${course.key}`} className="text-[10px] font-semibold uppercase tracking-[0.14em] text-signal/80">
+                          Credit Hours
+                        </label>
+                        <input
+                          id={`credits-${course.key}`}
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={courseCredits?.[course.key] ?? effectiveCredits}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            const parsed = Number(raw);
+                            setCourseCredits((prev) => ({
+                              ...prev,
+                              [course.key]: Number.isFinite(parsed) && parsed > 0 ? parsed : getEffectiveCreditHours(course, prev),
+                            }));
+                          }}
+                          className="h-7 w-16 rounded border border-signal/30 bg-white px-2 text-sm font-semibold text-ink outline-none focus:border-signal"
+                        />
+                        {hasManualOverride && (
+                          <span className="rounded-full border border-emerald-300/70 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
+                            Manual Override
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <span className="rounded-full border border-signal/35 bg-signal/5 px-4 py-2 text-sm font-semibold uppercase tracking-[0.18em] text-signal">
                       {resolvedGrade}
                     </span>
                   </div>
+                  {fullyCompleted && (
+                    <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                      Achieved (100% complete)
+                    </p>
+                  )}
                   {required && <p className="mt-1 text-xs font-semibold uppercase text-signal">{required}</p>}
                 </button>
               );
@@ -1308,15 +1426,90 @@ const GradesPage = ({ selectedCourses, gradesData, gradeRanges }) => {
   );
 };
 
-const GradeCoursePage = ({ selectedCourses, gradesData, setGradesData, gradeRanges }) => {
+const GradeDropdown = ({ value, options, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+
+  useEffect(() => {
+    const onDocMouseDown = (event) => {
+      if (!rootRef.current || rootRef.current.contains(event.target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', onDocMouseDown);
+    return () => document.removeEventListener('mousedown', onDocMouseDown);
+  }, []);
+
+  const selectedLabel = value || 'Select grade';
+
+  return (
+    <div ref={rootRef} className="relative mt-1">
+      <button
+        type="button"
+        onClick={() => setOpen((s) => !s)}
+        className="flex h-10 w-full items-center justify-between rounded-md border border-signal/35 bg-white px-3 text-sm font-semibold text-ink shadow-[0_1px_2px_rgba(15,23,42,0.06),inset_0_1px_0_rgba(255,255,255,0.65)] outline-none transition hover:border-signal focus:border-signal focus:ring-2 focus:ring-signal/20"
+      >
+        <span className={value ? 'text-ink' : 'text-ink/55'}>{selectedLabel}</span>
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden="true"
+          className={`text-signal/85 transition-transform ${open ? 'rotate-180' : ''}`}
+        >
+          <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute left-0 right-0 z-30 mt-1.5 max-h-56 overflow-auto rounded-md border border-signal/30 bg-white p-1 shadow-[0_14px_30px_rgba(20,34,72,0.16)]">
+          <button
+            type="button"
+            onClick={() => {
+              onChange('');
+              setOpen(false);
+            }}
+            className={`w-full rounded-md px-3 py-2 text-left text-sm font-medium ${
+              !value ? 'bg-signal text-white' : 'text-ink/75 hover:bg-signal/10'
+            }`}
+          >
+            Select grade
+          </button>
+          {options.map((label) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => {
+                onChange(label);
+                setOpen(false);
+              }}
+              className={`mt-1 w-full rounded-md px-3 py-2 text-left text-sm font-semibold ${
+                value === label ? 'bg-signal text-white' : 'text-ink hover:bg-signal/10'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const GradeCoursePage = ({ selectedCourses, gradesData, setGradesData, gradeRanges, courseCredits }) => {
   const navigate = useNavigate();
   const { courseKey: encodedCourseKey } = useParams();
   const courseKey = decodeURIComponent(encodedCourseKey || '');
   const course = selectedCourses.find((c) => c.key === courseKey);
+  const fallbackCredits = getEffectiveCreditHours(course || {}, courseCredits);
 
   const upsertCourseGrade = (updater) => {
     setGradesData((prev) => {
-      const current = prev[courseKey] || { targetWeightage: '', selectedGrade: '', components: [createGradeComponent()] };
+      const current =
+        prev[courseKey] || {
+          targetWeightage: '',
+          selectedGrade: '',
+          components: buildDefaultGradeComponents(fallbackCredits),
+        };
       return { ...prev, [courseKey]: updater(current) };
     });
   };
@@ -1331,7 +1524,7 @@ const GradeCoursePage = ({ selectedCourses, gradesData, setGradesData, gradeRang
   const removeComponent = (componentId) => {
     upsertCourseGrade((current) => {
       const next = (current.components || []).filter((c) => c.id !== componentId);
-      return { ...current, components: next.length > 0 ? next : [createGradeComponent()] };
+      return { ...current, components: next.length > 0 ? next : buildDefaultGradeComponents(fallbackCredits) };
     });
   };
 
@@ -1355,10 +1548,15 @@ const GradeCoursePage = ({ selectedCourses, gradesData, setGradesData, gradeRang
   if (selectedCourses.length < 1) return <Navigate to="/" replace state={{ selectionRequired: true }} />;
   if (!course) return <Navigate to="/grades" replace />;
 
-  const courseGrade = gradesData[courseKey] || { targetWeightage: '', selectedGrade: '', components: [createGradeComponent()] };
+  const courseGrade =
+    gradesData[courseKey] || {
+      targetWeightage: '',
+      selectedGrade: '',
+      components: buildDefaultGradeComponents(fallbackCredits),
+    };
   const stats = calculateCourseStats(courseGrade, gradeRanges);
   const inferredGrade = percentToLetter(stats.targetPercent, gradeRanges);
-  const components = courseGrade.components || [createGradeComponent()];
+  const components = courseGrade.components || buildDefaultGradeComponents(fallbackCredits);
   const weightMismatch = Math.abs(stats.totalWeight - 100) > 0.01;
   const neededInRemainingWeightage =
     Number.isFinite(stats.requiredAverage) && stats.remainingWeight > 0
@@ -1427,18 +1625,11 @@ const GradeCoursePage = ({ selectedCourses, gradesData, setGradesData, gradeRang
             </div>
             <div className="w-full max-w-[240px]">
               <label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink/65">Course Grade</label>
-              <select
+              <GradeDropdown
                 value={courseGrade.selectedGrade || ''}
-                onChange={(e) => updateSelectedGrade(e.target.value)}
-                className="mt-1 h-10 w-full rounded-md border border-signal/30 bg-white px-3 text-sm leading-none shadow-[inset_0_1px_2px_rgba(15,23,42,0.08)] outline-none focus:border-signal"
-              >
-                <option value="">Select grade</option>
-                {gradeRanges.map((r) => (
-                  <option key={r.id} value={r.label}>
-                    {r.label}
-                  </option>
-                ))}
-              </select>
+                options={gradeRanges.map((r) => r.label)}
+                onChange={updateSelectedGrade}
+              />
             </div>
           </div>
 
@@ -1501,17 +1692,26 @@ const GradeCoursePage = ({ selectedCourses, gradesData, setGradesData, gradeRang
                     const hasWeight = Number.isFinite(weight) && weight > 0;
                     const ratio = hasTotal && hasScore ? Math.max(0, Math.min(1, score / total)) : NaN;
                     const achievedWeight = hasTotal && hasScore && hasWeight ? weight * ratio : NaN;
-                    const targetWeightForThis = hasWeight && Number.isFinite(stats.targetPercent)
-                      ? (stats.targetPercent / 100) * weight
-                      : NaN;
-                    const neededForThis = hasTotal && !hasScore && Number.isFinite(stats.requiredAverage)
-                      ? (stats.requiredAverage / 100) * total
-                      : NaN;
+                    const neededWeightForThis =
+                      hasWeight &&
+                      !hasScore &&
+                      Number.isFinite(stats.targetPercent) &&
+                      Number.isFinite(stats.remainingWeight) &&
+                      stats.remainingWeight > 0
+                        ? ((stats.targetPercent - stats.achievedPoints) * weight) / stats.remainingWeight
+                        : NaN;
+                    const neededForThis =
+                      hasTotal &&
+                      !hasScore &&
+                      Number.isFinite(stats.requiredAverage) &&
+                      Number.isFinite(total)
+                        ? (stats.requiredAverage / 100) * total
+                        : NaN;
                     const hasFooterData =
-                      Number.isFinite(achievedWeight) || Number.isFinite(targetWeightForThis) || Number.isFinite(neededForThis);
+                      Number.isFinite(achievedWeight) || Number.isFinite(neededWeightForThis) || Number.isFinite(neededForThis);
                     const targetGap =
-                      Number.isFinite(targetWeightForThis) && Number.isFinite(achievedWeight)
-                        ? targetWeightForThis - achievedWeight
+                      Number.isFinite(neededWeightForThis) && Number.isFinite(achievedWeight)
+                        ? neededWeightForThis - achievedWeight
                         : NaN;
                     const targetTone =
                       Number.isFinite(targetGap) && targetGap > 0.15
@@ -1524,9 +1724,9 @@ const GradeCoursePage = ({ selectedCourses, gradesData, setGradesData, gradeRang
                             Achieved Weightage: <span className="font-mono">{achievedWeight.toFixed(1)} / {weight.toFixed(1)} wt</span>
                           </span>
                         )}
-                        {Number.isFinite(targetWeightForThis) && (
+                        {Number.isFinite(neededWeightForThis) && (
                           <span className="rounded-full border border-ink/20 bg-white px-3 py-1 text-[11px] font-semibold text-ink/75">
-                            Target In This: <span className="font-mono">{targetWeightForThis.toFixed(1)} / {weight.toFixed(1)} wt</span>
+                            Needed In This: <span className="font-mono">{neededWeightForThis.toFixed(1)} / {weight.toFixed(1)} wt</span>
                           </span>
                         )}
                         {Number.isFinite(neededForThis) && (
@@ -1878,8 +2078,11 @@ const FriendsPage = ({ allClasses, selectedCourses, friends, setFriends }) => {
             </h1>
             <div className="hidden w-full gap-2 sm:grid sm:w-auto sm:grid-flow-col sm:auto-cols-max">
               <button onClick={() => navigate('/timetable')} className={BTN_BASE}>Timetable</button>
-              <button onClick={() => navigate('/clashes')} className={BTN_BASE}>Clashes</button>
-              <button onClick={() => navigate('/')} className={BTN_BASE}>Back</button>
+              <button onClick={() => navigate('/clashes')} className={BTN_BASE}>Clash Report</button>
+              <button onClick={() => navigate('/alternatives')} className={BTN_BASE}>Alternatives</button>
+              <button onClick={() => navigate('/grades')} className={BTN_BASE}>Grades</button>
+              <button onClick={() => navigate('/friends')} className={`${BTN_BASE} bg-signal text-white`}>Friends</button>
+              <button onClick={() => navigate('/')} className={BTN_BASE}>Back To Selection</button>
             </div>
           </div>
 
@@ -2043,6 +2246,14 @@ function App() {
       return DEFAULT_GRADE_RANGES;
     }
   });
+  const [courseCredits, setCourseCredits] = useState(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem('clashguard_course_credits') || '{}');
+      return raw && typeof raw === 'object' ? raw : {};
+    } catch {
+      return {};
+    }
+  });
   const [friends, setFriends] = useState(() => {
     try {
       const raw = JSON.parse(localStorage.getItem('clashguard_friends') || '[]');
@@ -2131,11 +2342,43 @@ function App() {
         if (allowed.has(key)) next[key] = value;
       });
       selectedCourses.forEach((course) => {
+        const creditHours = getEffectiveCreditHours(course, courseCredits);
         if (!next[course.key]) {
-          next[course.key] = { targetWeightage: '', selectedGrade: '', components: [createGradeComponent()] };
+          next[course.key] = {
+            targetWeightage: '',
+            selectedGrade: '',
+            components: buildDefaultGradeComponents(creditHours),
+          };
+          return;
+        }
+
+        if (hasOnlyBlankComponents(next[course.key]?.components)) {
+          next[course.key] = {
+            ...next[course.key],
+            components: buildDefaultGradeComponents(creditHours),
+          };
         }
       });
       return next;
+    });
+  }, [courseCredits, selectedCourses]);
+
+  useEffect(() => {
+    setCourseCredits((prev) => {
+      const allowed = new Set(selectedCourses.map((c) => c.key));
+      const next = {};
+      selectedCourses.forEach((course) => {
+        const existing = Number(prev?.[course.key]);
+        next[course.key] = Number.isFinite(existing) && existing > 0 ? existing : Math.max(1, Number(course.slots) || 1);
+      });
+      Object.keys(prev || {}).forEach((key) => {
+        if (!allowed.has(key)) return;
+        if (next[key] === undefined) {
+          const existing = Number(prev[key]);
+          if (Number.isFinite(existing) && existing > 0) next[key] = existing;
+        }
+      });
+      return JSON.stringify(next) === JSON.stringify(prev) ? prev : next;
     });
   }, [selectedCourses]);
 
@@ -2146,6 +2389,9 @@ function App() {
   useEffect(() => {
     localStorage.setItem('clashguard_grade_ranges', JSON.stringify(gradeRanges));
   }, [gradeRanges]);
+  useEffect(() => {
+    localStorage.setItem('clashguard_course_credits', JSON.stringify(courseCredits));
+  }, [courseCredits]);
   useEffect(() => {
     localStorage.setItem('clashguard_friends', JSON.stringify(friends));
   }, [friends]);
@@ -2196,6 +2442,8 @@ function App() {
               selectedCourses={selectedCourses}
               gradesData={gradesData}
               gradeRanges={gradeRanges}
+              courseCredits={courseCredits}
+              setCourseCredits={setCourseCredits}
             />
           }
         />
@@ -2207,6 +2455,7 @@ function App() {
               gradesData={gradesData}
               setGradesData={setGradesData}
               gradeRanges={gradeRanges}
+              courseCredits={courseCredits}
             />
           }
         />

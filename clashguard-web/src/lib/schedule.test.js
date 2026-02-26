@@ -37,20 +37,19 @@ describe('schedule helpers', () => {
     expect(clashes[0].b.id).toBe('b');
   });
 
-  test('selectedEntriesFromCourses prefers saved entries and dedupes by id', () => {
+  test('selectedEntriesFromCourses derives from all classes by selected key and dedupes by id', () => {
     const selected = [
       {
         key: 'CY3005|BCY-6A',
-        entries: [
-          { id: 'x1', day: 'Monday', startMinutes: 480, endMinutes: 530 },
-          { id: 'x1', day: 'Monday', startMinutes: 480, endMinutes: 530 },
-        ],
       },
     ];
-    const fallbackAll = [{ id: 'y1', course: 'CY3005', section: 'BCY-6A' }];
-    const out = selectedEntriesFromCourses(selected, fallbackAll);
+    const allClasses = [
+      { id: 'y1', course: 'CY3005', section: 'BCY-6A', day: 'Monday', startMinutes: 480, endMinutes: 530 },
+      { id: 'y1', course: 'CY3005', section: 'BCY-6A', day: 'Monday', startMinutes: 480, endMinutes: 530 },
+      { id: 'z1', course: 'CS2005', section: 'BCS-4K', day: 'Tuesday', startMinutes: 540, endMinutes: 590 },
+    ];
+    const out = selectedEntriesFromCourses(selected, allClasses);
     expect(out).toHaveLength(1);
-    expect(out[0].id).toBe('x1');
+    expect(out[0].id).toBe('y1');
   });
 });
-
