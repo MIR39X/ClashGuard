@@ -1416,7 +1416,7 @@ const GradesPage = ({ selectedCourses, gradesData, gradeRanges, courseCredits, s
                           className="h-7 w-16 rounded border border-signal/30 bg-white px-2 text-sm font-semibold text-ink outline-none focus:border-signal"
                         />
                         {hasManualOverride && (
-                          <span className="rounded-full border border-emerald-300/70 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
+                          <span className="rounded-full border border-emerald-300/70 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-emerald-700">
                             Manual Override
                           </span>
                         )}
