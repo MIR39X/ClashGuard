@@ -298,4 +298,26 @@ describe('App flow', () => {
 
     expect(screen.getByText('B+')).toBeInTheDocument();
   });
+
+  test('credit hours input can be cleared and replaced with a two digit value', async () => {
+    global.fetch = vi.fn().mockResolvedValue(mockClassesResponse(gradeClasses));
+
+    render(<App />);
+    await screen.findByText('MT2005-Prob BDS-4A');
+
+    fireEvent.click(within(screen.getByText('MT2005-Prob BDS-4A').closest('article')).getByRole('button', { name: 'Add' }));
+    fireEvent.click(screen.getByRole('button', { name: /View My Timetable/i }));
+    await screen.findByText(/\[02\]_MY TIMETABLE/i);
+
+    fireEvent.click(screen.getAllByRole('button', { name: /^Grades$/i })[0]);
+    await screen.findByText(/\[05\]_GRADES/i);
+
+    const creditInput = screen.getByLabelText(/Credit Hours/i);
+
+    fireEvent.change(creditInput, { target: { value: '' } });
+    expect(creditInput).toHaveValue(null);
+
+    fireEvent.change(creditInput, { target: { value: '10' } });
+    expect(creditInput).toHaveValue(10);
+  });
 });

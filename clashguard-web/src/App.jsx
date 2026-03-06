@@ -1391,11 +1391,27 @@ const GradesPage = ({ selectedCourses, gradesData, gradeRanges, courseCredits, s
                           value={courseCredits?.[course.key] ?? effectiveCredits}
                           onChange={(e) => {
                             const raw = e.target.value;
+                            if (raw === '') {
+                              setCourseCredits((prev) => ({
+                                ...prev,
+                                [course.key]: '',
+                              }));
+                              return;
+                            }
+
                             const parsed = Number(raw);
                             setCourseCredits((prev) => ({
                               ...prev,
-                              [course.key]: Number.isFinite(parsed) && parsed > 0 ? parsed : getEffectiveCreditHours(course, prev),
+                              [course.key]: Number.isFinite(parsed) && parsed > 0 ? parsed : prev?.[course.key] ?? effectiveCredits,
                             }));
+                          }}
+                          onBlur={(e) => {
+                            if (e.target.value !== '') return;
+                            setCourseCredits((prev) => {
+                              const next = { ...prev };
+                              delete next[course.key];
+                              return next;
+                            });
                           }}
                           className="h-7 w-16 rounded border border-signal/30 bg-white px-2 text-sm font-semibold text-ink outline-none focus:border-signal"
                         />
