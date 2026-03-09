@@ -160,6 +160,9 @@ describe('App flow', () => {
   test('select course and open timetable', async () => {
     render(<App />);
 
+    expect(screen.getByText(/Take ClashGuard with you/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Continue On Web/i }));
+
     await screen.findByText('CY3005-NS BCY-6A');
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     fireEvent.click(screen.getByRole('button', { name: /View My Timetable/i }));
@@ -206,6 +209,7 @@ describe('App flow', () => {
     global.fetch = vi.fn().mockResolvedValue(mockClassesResponse(filterClasses));
 
     render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /Continue On Web/i }));
     await screen.findByText('CS2005-DBS BCS-4K');
     expect(screen.getByText('CY3005-NS BCY-6A')).toBeInTheDocument();
 
@@ -222,6 +226,7 @@ describe('App flow', () => {
 
     render(<App />);
 
+    expect(screen.getByText(/Take ClashGuard with you/i)).toBeInTheDocument();
     expect(screen.getByText(/Courses Are Loading/i)).toBeInTheDocument();
     expect(screen.getByText(/Fetching the latest timetable data/i)).toBeInTheDocument();
 
@@ -231,10 +236,25 @@ describe('App flow', () => {
     expect(screen.queryByText(/Courses Are Loading/i)).not.toBeInTheDocument();
   });
 
+  test('apk prompt is dismissed permanently after user closes it', async () => {
+    const firstRender = render(<App />);
+
+    expect(screen.getByText(/Take ClashGuard with you/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Don't show this again/i }));
+
+    expect(screen.queryByText(/Take ClashGuard with you/i)).not.toBeInTheDocument();
+
+    firstRender.unmount();
+    render(<App />);
+    await screen.findByText('CY3005-NS BCY-6A');
+    expect(screen.queryByText(/Take ClashGuard with you/i)).not.toBeInTheDocument();
+  });
+
   test('clash report count and teacher-filtered alternatives are shown', async () => {
     global.fetch = vi.fn().mockResolvedValue(mockClassesResponse(clashClasses));
 
     render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /Continue On Web/i }));
     await screen.findByText('MT2005-Prob BDS-4A');
 
     fireEvent.click(within(screen.getByText('MT2005-Prob BDS-4A').closest('article')).getByRole('button', { name: 'Add' }));
@@ -263,6 +283,7 @@ describe('App flow', () => {
     global.fetch = vi.fn().mockResolvedValue(mockClassesResponse(gradeClasses));
 
     render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /Continue On Web/i }));
     await screen.findByText('MT2005-Prob BDS-4A');
 
     fireEvent.click(within(screen.getByText('MT2005-Prob BDS-4A').closest('article')).getByRole('button', { name: 'Add' }));
@@ -303,6 +324,7 @@ describe('App flow', () => {
     global.fetch = vi.fn().mockResolvedValue(mockClassesResponse(gradeClasses));
 
     render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /Continue On Web/i }));
     await screen.findByText('MT2005-Prob BDS-4A');
 
     fireEvent.click(within(screen.getByText('MT2005-Prob BDS-4A').closest('article')).getByRole('button', { name: 'Add' }));
@@ -328,6 +350,7 @@ describe('App flow', () => {
     global.fetch = vi.fn().mockResolvedValue(mockClassesResponse(gradeClasses));
 
     render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /Continue On Web/i }));
     await screen.findByText('MT2005-Prob BDS-4A');
 
     fireEvent.click(within(screen.getByText('MT2005-Prob BDS-4A').closest('article')).getByRole('button', { name: 'Add' }));

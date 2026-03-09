@@ -32,6 +32,7 @@ const MIN_FREE_SLOT_MINUTES = 10;
 const CLASSES_FETCHED_AT_KEY = 'clashguard_all_classes_fetched_at';
 const CLASSES_ETAG_KEY = 'clashguard_all_classes_etag';
 const CLASSES_CACHE_TTL_MS = 15 * 60 * 1000;
+const APK_PROMPT_DISMISSED_KEY = 'clashguard_apk_prompt_dismissed';
 const BTN_BASE =
   'rounded-lg border border-signal px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-signal transition hover:bg-signal hover:text-white disabled:cursor-not-allowed disabled:border-signal/30 disabled:text-signal/35';
 const ALT_LIMITS = ['5', '10', '20', 'all'];
@@ -393,6 +394,7 @@ const MobileBottomNav = () => {
 
 const Shell = ({ children }) => {
   const [showAbout, setShowAbout] = useState(false);
+  const [showApkPrompt, setShowApkPrompt] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const isNativeApp =
@@ -400,6 +402,28 @@ const Shell = ({ children }) => {
     !!window.Capacitor &&
     typeof window.Capacitor.isNativePlatform === 'function' &&
     window.Capacitor.isNativePlatform();
+  const isAndroid =
+    typeof navigator !== 'undefined' &&
+    /android/i.test(navigator.userAgent || '');
+
+  useEffect(() => {
+    if (isNativeApp) return;
+    try {
+      const dismissed = localStorage.getItem(APK_PROMPT_DISMISSED_KEY);
+      if (!dismissed) setShowApkPrompt(true);
+    } catch {
+      setShowApkPrompt(true);
+    }
+  }, [isNativeApp]);
+
+  const dismissApkPrompt = () => {
+    setShowApkPrompt(false);
+    try {
+      localStorage.setItem(APK_PROMPT_DISMISSED_KEY, '1');
+    } catch {
+      // ignore localStorage write issues
+    }
+  };
 
   return (
     <div className="relative min-h-screen overflow-x-hidden px-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-4 sm:px-5 sm:pb-6 sm:pt-6 md:px-8 lg:px-10">
@@ -454,6 +478,63 @@ const Shell = ({ children }) => {
           Clashguard 2026 All Rights Reserved
         </footer>
         <MobileBottomNav />
+
+        {showApkPrompt && !isNativeApp && (
+          <div
+            className="fixed inset-0 z-50 grid place-items-end bg-black/35 p-3 backdrop-blur-sm sm:place-items-center sm:p-4"
+            onClick={dismissApkPrompt}
+          >
+            <div
+              className="w-full max-w-lg overflow-hidden rounded-[28px] border border-signal/25 bg-white/95 shadow-[0_24px_60px_rgba(18,24,48,0.22)]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-[linear-gradient(135deg,rgba(66,86,184,0.14),rgba(86,170,255,0.08))] px-5 py-4 sm:px-6 sm:py-5">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-signal/80">ClashGuard App</p>
+                <h3 className="mt-2 font-display text-3xl leading-[0.92] tracking-wide text-signal sm:text-4xl">
+                  Take ClashGuard with you
+                </h3>
+                <p className="mt-3 max-w-md text-sm leading-relaxed text-ink/75">
+                  Download the Android app for faster access, a cleaner mobile experience, and your latest timetable tools on-device.
+                </p>
+              </div>
+              <div className="px-5 py-4 sm:px-6 sm:py-5">
+                <div className="rounded-2xl border border-signal/15 bg-signal/5 px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-signal/80">
+                    {isAndroid ? 'Recommended for this device' : 'Android app available'}
+                  </p>
+                  <p className="mt-1 text-sm text-ink/70">
+                    {isAndroid
+                      ? 'Install the APK directly on this Android device.'
+                      : 'You can download the APK now and install it on an Android phone later.'}
+                  </p>
+                </div>
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                  <a
+                    href={APK_DOWNLOAD_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={dismissApkPrompt}
+                    className="inline-flex flex-1 items-center justify-center rounded-xl bg-signal px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-signal/90"
+                  >
+                    Download APK
+                  </a>
+                  <button
+                    onClick={dismissApkPrompt}
+                    className="inline-flex flex-1 items-center justify-center rounded-xl border border-signal/30 px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-signal transition hover:bg-signal/5"
+                  >
+                    Continue On Web
+                  </button>
+                </div>
+                <button
+                  onClick={dismissApkPrompt}
+                  className="mt-3 w-full text-[11px] font-semibold uppercase tracking-[0.14em] text-ink/55 transition hover:text-ink/75"
+                >
+                  Don&apos;t show this again
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {showAbout && (
           <div
