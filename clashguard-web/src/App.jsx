@@ -504,7 +504,7 @@ const Shell = ({ children }) => {
 const SelectPage = ({ sectionFilter, setSectionFilter, allClasses, setAllClasses, selectedCourses, setSelectedCourses }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(() => allClasses.length === 0);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
   const [showSelectedModal, setShowSelectedModal] = useState(false);
@@ -703,6 +703,14 @@ const SelectPage = ({ sectionFilter, setSectionFilter, allClasses, setAllClasses
             />
           </div>
           <div className="themed-scroll mt-3 min-h-0 flex-1 space-y-2 overflow-auto pr-1">
+            {loading && courseOptions.length === 0 && (
+              <div className="rounded-xl border border-signal/25 bg-signal/5 px-4 py-5 text-center">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-signal">Courses Are Loading</p>
+                <p className="mt-2 text-sm text-ink/70">
+                  Fetching the latest timetable data. Please wait a moment.
+                </p>
+              </div>
+            )}
             {courseOptions.map((item) => (
               <article key={item.key} className="rounded-xl border border-ink/12 bg-white p-3">
                 <p className="text-base font-semibold leading-snug text-ink">{item.title}</p>

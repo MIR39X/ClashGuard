@@ -8,6 +8,16 @@ const mockClassesResponse = (classes) => ({
   json: async () => ({ classes }),
 });
 
+const createDeferred = () => {
+  let resolve;
+  let reject;
+  const promise = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+};
+
 const mockClasses = [
   {
     id: 'c1',
@@ -204,6 +214,21 @@ describe('App flow', () => {
       expect(screen.getByText('CS2005-DBS BCS-4K')).toBeInTheDocument();
     });
     expect(screen.queryByText('CY3005-NS BCY-6A')).not.toBeInTheDocument();
+  });
+
+  test('shows a loading message while courses are being fetched for the first time', async () => {
+    const deferred = createDeferred();
+    global.fetch = vi.fn().mockReturnValue(deferred.promise);
+
+    render(<App />);
+
+    expect(screen.getByText(/Courses Are Loading/i)).toBeInTheDocument();
+    expect(screen.getByText(/Fetching the latest timetable data/i)).toBeInTheDocument();
+
+    deferred.resolve(mockClassesResponse(mockClasses));
+
+    await screen.findByText('CY3005-NS BCY-6A');
+    expect(screen.queryByText(/Courses Are Loading/i)).not.toBeInTheDocument();
   });
 
   test('clash report count and teacher-filtered alternatives are shown', async () => {
