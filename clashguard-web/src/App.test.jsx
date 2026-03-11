@@ -4,9 +4,31 @@ import App from './App';
 const mockClassesResponse = (classes) => ({
   ok: true,
   status: 200,
-  headers: { get: () => null },
+  headers: { get: (name) => (String(name).toLowerCase() === 'content-type' ? 'application/json' : null) },
   json: async () => ({ classes }),
 });
+
+const mockOnlineClassesResponse = (items, schedule = []) => ({
+  ok: true,
+  status: 200,
+  headers: { get: (name) => (String(name).toLowerCase() === 'content-type' ? 'application/json' : null) },
+  json: async () => ({
+    status: 'ok',
+    fetchedAt: '2026-03-12T12:00:00.000Z',
+    count: items.length,
+    schedule,
+    items,
+  }),
+});
+
+const makeFetchMock = ({ classes = mockClasses, onlineClasses = [], onlineSchedule = [] } = {}) =>
+  vi.fn((input) => {
+    const url = String(input || '');
+    if (url.includes('/online-classes')) {
+      return Promise.resolve(mockOnlineClassesResponse(onlineClasses, onlineSchedule));
+    }
+    return Promise.resolve(mockClassesResponse(classes));
+  });
 
 const createDeferred = () => {
   let resolve;
@@ -147,14 +169,65 @@ const gradeClasses = [
   },
 ];
 
+const onlineClasses = [
+  {
+    id: 'online-1',
+    rowNumber: 4,
+    sheetDay: 'Wednesday',
+    teacher: 'Dr. Muhammad Farrukh Shahid',
+    course: 'Agentic AI',
+    time: '10:40 am to 11:15 AM',
+    link: 'https://meet.google.com/siy-wavo-sww',
+    rawSection: 'BCS A',
+    resolvedSection: 'BCS-8A',
+    matchedDays: ['Wednesday'],
+    confidence: 'high',
+    matchReasons: ['teacher-match'],
+    timetableMatches: [{ title: 'AI4015-AAI BCS-8A', day: 'Wednesday', slot: '10:40-11:15' }],
+  },
+];
+
+const onlineClassesGcr = [
+  {
+    id: 'online-gcr-1',
+    rowNumber: 36,
+    sheetDay: 'Wednesday',
+    teacher: 'Abuzar Zafar',
+    course: 'FMA',
+    time: '9:20 - 9:55',
+    link: 'Shared on GCR',
+    rawSection: 'BCY-6A',
+    resolvedSection: 'BCY-6A',
+    matchedDays: ['Wednesday'],
+    confidence: 'high',
+    matchReasons: ['direct-section-from-sheet'],
+    timetableMatches: [{ title: 'CY3004-FMA BCY-6A', day: 'Wednesday', slot: '9:20 - 9:55' }],
+  },
+];
+
+const onlineSchedule = [
+  {
+    id: 'sched-1',
+    title: 'CY3005-NS BCY-6A',
+    teacher: 'Dr. Sufian Hameed',
+    day: 'Wednesday',
+    slot: '10:45 - 11:35',
+    start: '10:45',
+    end: '11:35',
+    course: 'CY3005',
+    section: 'BCY-6A',
+  },
+];
+
 describe('App flow', () => {
   beforeEach(() => {
+    window.history.pushState({}, '', '/');
     try {
       window.localStorage?.clear?.();
     } catch {
       // ignore storage reset issues in constrained test envs
     }
-    global.fetch = vi.fn().mockResolvedValue(mockClassesResponse(mockClasses));
+    global.fetch = makeFetchMock();
   });
 
   test('select course and open timetable', async () => {
@@ -174,7 +247,7 @@ describe('App flow', () => {
   });
 
   test('apply alternative updates selected course in timetable', async () => {
-    global.fetch = vi.fn().mockResolvedValue(mockClassesResponse(clashClasses));
+    global.fetch = makeFetchMock({ classes: clashClasses });
 
     render(<App />);
 
@@ -206,7 +279,7 @@ describe('App flow', () => {
   });
 
   test('section filter narrows available courses list', async () => {
-    global.fetch = vi.fn().mockResolvedValue(mockClassesResponse(filterClasses));
+    global.fetch = makeFetchMock({ classes: filterClasses });
 
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: /Continue On Web/i }));
@@ -250,8 +323,87 @@ describe('App flow', () => {
     expect(screen.queryByText(/Take ClashGuard with you/i)).not.toBeInTheDocument();
   });
 
+  test('temporary online classes page shows matched live results for a section', async () => {
+    global.fetch = makeFetchMock({ onlineClasses });
+
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /Continue On Web/i }));
+    await screen.findByText('CY3005-NS BCY-6A');
+    fireEvent.change(screen.getByPlaceholderText('BCY-6A / BCS-4K'), { target: { value: 'BCS-8A' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Temporary Online Classes/i }));
+
+    await screen.findByText(/\[08\]_ONLINE CLASSES/i);
+    expect(screen.getByText(/Experimental Feature/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Wednesday' }));
+    await screen.findByText('Agentic AI');
+    expect(screen.getByText('Dr. Muhammad Farrukh Shahid')).toBeInTheDocument();
+    expect(screen.getByText('BCS-8A')).toBeInTheDocument();
+    expect(screen.getAllByText('Wednesday').length).toBeGreaterThan(0);
+    expect(screen.queryByText('AI4015-AAI BCS-8A | Wednesday')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Open Wednesday Class/i })).toHaveAttribute(
+      'href',
+      'https://meet.google.com/siy-wavo-sww',
+    );
+    fireEvent.click(screen.getByText('Show Timetable Evidence'));
+    expect(screen.getByText('AI4015-AAI BCS-8A | Wednesday')).toBeInTheDocument();
+  });
+
+  test('temporary online classes page shows a section-specific empty state', async () => {
+    global.fetch = makeFetchMock({ onlineClasses: [] });
+
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /Continue On Web/i }));
+    await screen.findByText('CY3005-NS BCY-6A');
+    fireEvent.change(screen.getByPlaceholderText('BCY-6A / BCS-4K'), { target: { value: 'BCY-6A' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Temporary Online Classes/i }));
+
+    await screen.findByText(/\[08\]_ONLINE CLASSES/i);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Monday' }));
+    expect(screen.getByText('No temporary online classes are listed for BCY-6A on Monday right now.')).toBeInTheDocument();
+  });
+
+  test('temporary online classes page shows scheduled class when no live link is listed yet', async () => {
+    global.fetch = makeFetchMock({ onlineClasses: [], onlineSchedule });
+
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /Continue On Web/i }));
+    await screen.findByText('CY3005-NS BCY-6A');
+    fireEvent.change(screen.getByPlaceholderText('BCY-6A / BCS-4K'), { target: { value: 'BCY-6A' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Temporary Online Classes/i }));
+
+    await screen.findByText(/\[08\]_ONLINE CLASSES/i);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Wednesday' }));
+    expect(screen.getByText('BCY-6A has scheduled classes on Wednesday, but no live online link is currently listed in the temporary sheet.')).toBeInTheDocument();
+    expect(screen.getByText('CY3005-NS BCY-6A')).toBeInTheDocument();
+    expect(screen.getByText('No live link yet')).toBeInTheDocument();
+  });
+
+  test('temporary online classes page shows shared on gcr as a status instead of a broken link', async () => {
+    global.fetch = makeFetchMock({ onlineClasses: onlineClassesGcr });
+
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /Continue On Web/i }));
+    await screen.findByText('CY3005-NS BCY-6A');
+    fireEvent.change(screen.getByPlaceholderText('BCY-6A / BCS-4K'), { target: { value: 'BCY-6A' } });
+    fireEvent.click(screen.getByRole('button', { name: /Temporary Online Classes/i }));
+
+    await screen.findByText(/\[08\]_ONLINE CLASSES/i);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Wednesday' }));
+    expect(screen.getByText('Abuzar Zafar')).toBeInTheDocument();
+    expect(screen.getByText('FMA')).toBeInTheDocument();
+    expect(screen.getByText('Shared on GCR')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Open Wednesday Class/i })).not.toBeInTheDocument();
+  });
+
   test('clash report count and teacher-filtered alternatives are shown', async () => {
-    global.fetch = vi.fn().mockResolvedValue(mockClassesResponse(clashClasses));
+    global.fetch = makeFetchMock({ classes: clashClasses });
 
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: /Continue On Web/i }));
@@ -280,7 +432,7 @@ describe('App flow', () => {
   });
 
   test('grade page supports adding components and custom weightage calculations', async () => {
-    global.fetch = vi.fn().mockResolvedValue(mockClassesResponse(gradeClasses));
+    global.fetch = makeFetchMock({ classes: gradeClasses });
 
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: /Continue On Web/i }));
@@ -321,7 +473,7 @@ describe('App flow', () => {
   });
 
   test('custom course grade dropdown updates selected grade', async () => {
-    global.fetch = vi.fn().mockResolvedValue(mockClassesResponse(gradeClasses));
+    global.fetch = makeFetchMock({ classes: gradeClasses });
 
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: /Continue On Web/i }));
@@ -347,7 +499,7 @@ describe('App flow', () => {
   });
 
   test('credit hours input can be cleared and replaced with a two digit value', async () => {
-    global.fetch = vi.fn().mockResolvedValue(mockClassesResponse(gradeClasses));
+    global.fetch = makeFetchMock({ classes: gradeClasses });
 
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: /Continue On Web/i }));

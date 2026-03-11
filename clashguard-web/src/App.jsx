@@ -26,6 +26,7 @@ const DAY_SHORT = {
   Sunday: 'Sun',
 };
 const WEEK_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+const isDirectLink = (value) => /^https?:\/\//i.test(String(value || '').trim());
 const FREE_WINDOW_START = 8 * 60;
 const FREE_WINDOW_END = 16 * 60;
 const MIN_FREE_SLOT_MINUTES = 10;
@@ -334,6 +335,7 @@ const MobileBottomNav = () => {
     { label: 'Alt', path: '/alternatives' },
     { label: 'Friends', path: '/friends' },
     { label: 'Grades', path: '/grades' },
+    { label: 'Online', path: '/online-classes' },
   ];
   const currentIndex = items.findIndex(
     (item) =>
@@ -767,8 +769,8 @@ const SelectPage = ({ sectionFilter, setSectionFilter, allClasses, setAllClasses
                 View My Timetable
               </button>
             </div>
-            <button onClick={() => navigateWithSelectionCheck('/friends')} className={`${BTN_BASE} mt-2 w-full py-2 text-[11px]`}>
-              Friends Free Slots
+            <button onClick={() => navigate('/online-classes')} className={`${BTN_BASE} mt-2 w-full py-2 text-[11px]`}>
+              Temporary Online Classes
             </button>
           </div>
         </section>
@@ -862,6 +864,299 @@ const SelectPage = ({ sectionFilter, setSectionFilter, allClasses, setAllClasses
             <div className="mt-4">
               <button onClick={() => setShowSelectionRequiredModal(false)} className={`${BTN_BASE} w-full`}>
                 Okay
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </Shell>
+  );
+};
+
+const OnlineClassesPage = ({ sectionFilter }) => {
+  const navigate = useNavigate();
+  const [sectionQuery, setSectionQuery] = useState(() => String(sectionFilter || '').toUpperCase());
+  const [activeDay, setActiveDay] = useState('All');
+  const [showExperimentalNotice, setShowExperimentalNotice] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [results, setResults] = useState([]);
+  const [schedule, setSchedule] = useState([]);
+  const [openEvidenceById, setOpenEvidenceById] = useState({});
+  const [lastFetchedAt, setLastFetchedAt] = useState('');
+  const filteredResults = useMemo(() => {
+    if (activeDay === 'All') return results;
+    return results.filter((item) => Array.isArray(item.matchedDays) && item.matchedDays.includes(activeDay));
+  }, [activeDay, results]);
+  const filteredSchedule = useMemo(() => {
+    if (activeDay === 'All') return schedule;
+    return schedule.filter((entry) => entry.day === activeDay);
+  }, [activeDay, schedule]);
+
+  const fetchOnlineClasses = async (section, { refresh = false } = {}) => {
+    const cleanSection = String(section || '').trim().toUpperCase();
+    if (!cleanSection) {
+      setResults([]);
+      setError('Enter a section like BCS-8A or BSFT-2B.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    try {
+      const params = new URLSearchParams({ section: cleanSection });
+      if (refresh) params.set('refresh', 'true');
+      const response = await fetch(`${API_BASE}/online-classes?${params.toString()}`);
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.toLowerCase().includes('application/json')) {
+        throw new Error('Online classes service is not available yet. The backend route still needs to be deployed.');
+      }
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to fetch online classes');
+      setResults(Array.isArray(data.items) ? data.items : []);
+      setSchedule(Array.isArray(data.schedule) ? data.schedule : []);
+      setOpenEvidenceById({});
+      setLastFetchedAt(data.fetchedAt || '');
+    } catch (err) {
+      setResults([]);
+      setSchedule([]);
+      setError(err.message || 'Failed to fetch online classes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!sectionFilter) return;
+    fetchOnlineClasses(sectionFilter);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <Shell>
+      <main className="mx-auto w-full max-w-5xl pt-8 md:pt-12">
+        <section className="animate-rise rounded-2xl border border-signal/35 bg-white/65 p-6 backdrop-blur-sm md:p-8">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h1 className="font-display text-signal text-[clamp(2rem,5vw,3.5rem)] leading-[0.9] tracking-wide">
+                [08]_ONLINE CLASSES
+              </h1>
+            </div>
+            <button onClick={() => navigate('/')} className={BTN_BASE}>Back To Selection</button>
+          </div>
+
+          <div className="mt-4 rounded-xl border border-signal/25 bg-white/90 p-4">
+            <div className="grid gap-3 md:grid-cols-[1fr_auto_auto] md:items-end">
+              <div>
+                <label className="block text-xs uppercase tracking-[0.18em] text-ink/60">Section</label>
+                <input
+                  value={sectionQuery}
+                  onChange={(e) => setSectionQuery(e.target.value.toUpperCase())}
+                  placeholder="BCS-8A / BSFT-2B"
+                  className="mt-2 w-full rounded-xl border border-signal/30 bg-white px-3 py-3 text-sm uppercase outline-none focus:border-signal"
+                />
+              </div>
+              <button
+                onClick={() => fetchOnlineClasses(sectionQuery)}
+                disabled={loading}
+                className={`${BTN_BASE} h-12 px-5 disabled:opacity-50`}
+              >
+                {loading ? 'Searching...' : 'Find Classes'}
+              </button>
+              <button
+                onClick={() => fetchOnlineClasses(sectionQuery, { refresh: true })}
+                disabled={loading}
+                className={`${BTN_BASE} h-12 px-5 disabled:opacity-50`}
+              >
+                Refresh Live Sheet
+              </button>
+            </div>
+            {lastFetchedAt && (
+              <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink/55">
+                Live Sync: {new Date(lastFetchedAt).toLocaleString()}
+              </p>
+            )}
+            {error && <p className="mt-3 text-sm text-red-700">{error}</p>}
+          </div>
+
+          <div className="mt-4 rounded-xl border border-signal/25 bg-white/90 p-4">
+            <p className="text-xs uppercase tracking-[0.18em] text-ink/60">Day Filter</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {['All', ...WEEK_DAYS].map((day) => (
+                <button
+                  key={day}
+                  onClick={() => setActiveDay(day)}
+                  className={`rounded-full border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] transition ${
+                    activeDay === day
+                      ? 'border-signal bg-signal text-white'
+                      : 'border-signal/25 bg-white text-signal hover:bg-signal/5'
+                  }`}
+                >
+                  {day}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {loading && (
+              <div className="rounded-xl border border-signal/20 bg-signal/5 px-4 py-5 text-center">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-signal">Checking Live Online Classes</p>
+                <p className="mt-2 text-sm text-ink/70">Pulling the latest temporary online timetable and matching it with ClashGuard data.</p>
+              </div>
+            )}
+
+            {!loading && filteredResults.length === 0 && filteredSchedule.length === 0 && !error && (
+              <div className="rounded-xl border border-dashed border-signal/25 bg-white/70 px-4 py-5 text-center text-sm text-ink/65">
+                No temporary online classes are listed for {sectionQuery || 'this section'}{activeDay !== 'All' ? ` on ${activeDay}` : ''} right now.
+              </div>
+            )}
+
+            {!loading && filteredResults.length === 0 && filteredSchedule.length > 0 && !error && (
+              <div className="rounded-xl border border-signal/20 bg-amber-50 px-4 py-5 text-center text-sm text-ink/75">
+                {sectionQuery || 'This section'} has scheduled classes{activeDay !== 'All' ? ` on ${activeDay}` : ''}, but no live online link is currently listed in the temporary sheet.
+              </div>
+            )}
+
+            {filteredResults.map((item) => {
+              const inferredDays = Array.isArray(item.matchedDays) ? item.matchedDays : [];
+              const actionDay = activeDay !== 'All' && inferredDays.includes(activeDay)
+                ? activeDay
+                : inferredDays[0] || '';
+              const isEvidenceOpen = Boolean(openEvidenceById[item.id]);
+              const hasDirectLink = isDirectLink(item.link);
+
+              return (
+                <article key={item.id} className="rounded-2xl border border-signal/25 bg-white/95 p-4 shadow-[0_8px_24px_rgba(12,12,12,0.06)]">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-signal/75">
+                        {item.resolvedSection || item.rawSection || 'Unresolved Section'}
+                      </p>
+                      <h2 className="mt-1 text-lg font-semibold text-ink">{item.course || 'Course not listed'}</h2>
+                      <p className="mt-1 text-sm text-ink/75">{item.teacher || 'Teacher not listed'}</p>
+                    </div>
+                    <span className="rounded-full border border-signal/25 bg-signal/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-signal">
+                      {item.confidence} confidence
+                    </span>
+                  </div>
+
+                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                    <div className="rounded-xl border border-ink/12 bg-ash px-3 py-2">
+                      <p className="text-[10px] uppercase tracking-[0.16em] text-ink/55">Time</p>
+                      <p className="mt-1 text-sm font-semibold text-ink">{item.time || 'Time not provided'}</p>
+                    </div>
+                    <div className="rounded-xl border border-ink/12 bg-ash px-3 py-2">
+                      <p className="text-[10px] uppercase tracking-[0.16em] text-ink/55">Sheet Entry</p>
+                      <p className="mt-1 text-sm font-semibold text-ink">{item.rawSection || 'Not provided'}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-2 rounded-xl border border-ink/12 bg-ash px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-[0.16em] text-ink/55">Class Day</p>
+                    <p className="mt-1 text-sm font-semibold text-ink">
+                      {inferredDays.length > 0 ? inferredDays.join(', ') : 'Day could not be inferred yet'}
+                    </p>
+                  </div>
+
+                  {item.link ? (
+                    hasDirectLink ? (
+                      <a
+                        href={item.link}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-3 inline-flex rounded-lg bg-signal px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-signal/90"
+                      >
+                        {actionDay ? `Open ${actionDay} Class` : 'Open Online Class'}
+                      </a>
+                    ) : (
+                      <div className="mt-3 inline-flex rounded-lg border border-amber-300 bg-amber-100 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-amber-800">
+                        {item.link}
+                      </div>
+                    )
+                  ) : (
+                    <p className="mt-3 text-sm text-ink/60">Online link not provided in the sheet.</p>
+                  )}
+
+                  {Array.isArray(item.timetableMatches) && item.timetableMatches.length > 0 && (
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        onClick={() => setOpenEvidenceById((prev) => ({ ...prev, [item.id]: !prev[item.id] }))}
+                        className="rounded-lg border border-signal/20 bg-signal/5 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-signal/80 transition hover:bg-signal/10"
+                      >
+                        {isEvidenceOpen ? 'Hide Timetable Evidence' : 'Show Timetable Evidence'}
+                      </button>
+                      {isEvidenceOpen && (
+                        <div className="mt-2 rounded-xl border border-signal/15 bg-signal/5 px-3 py-3">
+                          <div className="flex flex-wrap gap-2">
+                            {item.timetableMatches.map((match) => (
+                              <span key={`${match.title}-${match.day}-${match.slot}`} className="rounded-full border border-signal/20 bg-white px-3 py-1 text-[11px] font-medium text-ink/80">
+                                {match.title}{match.day ? ` | ${match.day}` : ''}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </article>
+              );
+            })}
+
+            {!loading && filteredResults.length === 0 && filteredSchedule.length > 0 && (
+              <div className="space-y-3">
+                {filteredSchedule.map((entry) => (
+                  <article key={`schedule-${entry.id}-${entry.day}-${entry.slot}`} className="rounded-2xl border border-amber-200 bg-white/95 p-4 shadow-[0_8px_24px_rgba(12,12,12,0.05)]">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-700">
+                          {entry.section || sectionQuery || 'Section'}
+                        </p>
+                        <h2 className="mt-1 text-lg font-semibold text-ink">{entry.title || entry.course || 'Scheduled class'}</h2>
+                        <p className="mt-1 text-sm text-ink/75">{entry.teacher || 'Teacher not listed'}</p>
+                      </div>
+                      <span className="rounded-full border border-amber-300 bg-amber-100 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-800">
+                        No live link yet
+                      </span>
+                    </div>
+
+                    <div className="mt-3 grid gap-2 md:grid-cols-2">
+                      <div className="rounded-xl border border-ink/12 bg-ash px-3 py-2">
+                        <p className="text-[10px] uppercase tracking-[0.16em] text-ink/55">Class Day</p>
+                        <p className="mt-1 text-sm font-semibold text-ink">{entry.day || 'Day not available'}</p>
+                      </div>
+                      <div className="rounded-xl border border-ink/12 bg-ash px-3 py-2">
+                        <p className="text-[10px] uppercase tracking-[0.16em] text-ink/55">Time</p>
+                        <p className="mt-1 text-sm font-semibold text-ink">{entry.slot || (entry.start && entry.end ? `${entry.start} - ${entry.end}` : 'Time not available')}</p>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      </main>
+
+      {showExperimentalNotice && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-3 backdrop-blur-sm">
+          <div className="w-full max-w-xl rounded-2xl border border-signal/35 bg-white/95 p-5 shadow-[0_18px_40px_rgba(20,20,20,0.25)] md:p-6">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-signal/70">Experimental Feature</p>
+            <h2 className="mt-2 font-display text-3xl tracking-wide text-signal sm:text-4xl">ONLINE CLASS NOTICE</h2>
+            <p className="mt-3 text-sm leading-relaxed text-ink/80">
+              This feature is experimental. Because teachers update the live sheet manually, some online class details may be incomplete or incorrect.
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-ink/80">
+              Please verify important details with Google Classroom or your instructor.
+            </p>
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <button onClick={() => navigate('/')} className={BTN_BASE}>Back</button>
+              <button
+                onClick={() => setShowExperimentalNotice(false)}
+                className="rounded-lg bg-signal px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-signal/90"
+              >
+                Continue
               </button>
             </div>
           </div>
@@ -2517,6 +2812,7 @@ function App() {
             />
           }
         />
+        <Route path="/online-classes" element={<OnlineClassesPage sectionFilter={sectionFilter} />} />
         <Route path="/timetable" element={<TimetablePage allClasses={allClasses} selectedCourses={selectedCourses} />} />
         <Route path="/clashes" element={<ClashReportPage allClasses={allClasses} selectedCourses={selectedCourses} />} />
         <Route

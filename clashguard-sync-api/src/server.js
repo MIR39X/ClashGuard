@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import { createHash } from 'node:crypto';
+import { onlineClassesRouter } from './onlineClasses/routes.js';
 import { config } from './config.js';
 import { sectionClashes } from './parser.js';
 import { getSyncState, runSync, startAutoSync, stopAutoSync } from './syncService.js';
@@ -32,6 +33,8 @@ app.get('/', (_req, res) => {
       'POST /sync/trigger',
       'GET /classes?section=BCY-6A',
       'GET /clashes?section=BCY-6A',
+      'GET /online-classes?section=BCS-8A',
+      'GET /online-classes/status',
       'POST /share',
       'GET /share/:code',
     ],
@@ -98,6 +101,8 @@ app.get('/clashes', (req, res) => {
   const clashes = sectionClashes(getSyncState().classes, section);
   res.json({ section, count: clashes.length, clashes });
 });
+
+app.use('/online-classes', onlineClassesRouter);
 
 const cleanupExpiredShares = () => {
   const now = Date.now();
