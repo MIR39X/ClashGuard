@@ -1225,6 +1225,9 @@ const TimetablePage = ({ allClasses, selectedCourses }) => {
               <button onClick={() => navigate('/friends')} className={BTN_BASE}>
                 Friends
               </button>
+              <button onClick={() => navigate('/online-classes')} className={BTN_BASE}>
+                Online
+              </button>
               <button onClick={() => navigate('/')} className={BTN_BASE}>
                 Back To Selection
               </button>
@@ -1345,6 +1348,9 @@ const ClashReportPage = ({ allClasses, selectedCourses }) => {
               </button>
               <button onClick={() => navigate('/friends')} className={BTN_BASE}>
                 Friends
+              </button>
+              <button onClick={() => navigate('/online-classes')} className={BTN_BASE}>
+                Online
               </button>
               <button onClick={() => navigate('/')} className={BTN_BASE}>
                 Back To Selection
@@ -1525,6 +1531,9 @@ const AlternativesPage = ({ allClasses, selectedCourses, setSelectedCourses }) =
               <button onClick={() => navigate('/friends')} className={BTN_BASE}>
                 Friends
               </button>
+              <button onClick={() => navigate('/online-classes')} className={BTN_BASE}>
+                Online
+              </button>
               <button onClick={() => navigate('/')} className={BTN_BASE}>
                 Back To Selection
               </button>
@@ -1702,6 +1711,9 @@ const GradesPage = ({ selectedCourses, gradesData, gradeRanges, courseCredits, s
               </button>
               <button onClick={() => navigate('/friends')} className={BTN_BASE}>
                 Friends
+              </button>
+              <button onClick={() => navigate('/online-classes')} className={BTN_BASE}>
+                Online
               </button>
               <button onClick={() => navigate('/')} className={BTN_BASE}>
                 Back To Selection
@@ -2482,6 +2494,7 @@ const FriendsPage = ({ allClasses, selectedCourses, friends, setFriends }) => {
               <button onClick={() => navigate('/alternatives')} className={BTN_BASE}>Alternatives</button>
               <button onClick={() => navigate('/grades')} className={BTN_BASE}>Grades</button>
               <button onClick={() => navigate('/friends')} className={`${BTN_BASE} bg-signal text-white`}>Friends</button>
+              <button onClick={() => navigate('/online-classes')} className={BTN_BASE}>Online</button>
               <button onClick={() => navigate('/')} className={BTN_BASE}>Back To Selection</button>
             </div>
           </div>
