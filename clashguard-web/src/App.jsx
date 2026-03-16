@@ -26,7 +26,13 @@ const DAY_SHORT = {
   Sunday: 'Sun',
 };
 const WEEK_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-const isDirectLink = (value) => /^https?:\/\//i.test(String(value || '').trim());
+const normalizeOnlineLink = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (/^[a-z0-9.-]+\.[a-z]{2,}(\/|$)/i.test(raw)) return `https://${raw}`;
+  return '';
+};
 const FREE_WINDOW_START = 8 * 60;
 const FREE_WINDOW_END = 16 * 60;
 const MIN_FREE_SLOT_MINUTES = 10;
@@ -1024,7 +1030,7 @@ const OnlineClassesPage = ({ sectionFilter }) => {
                 ? activeDay
                 : inferredDays[0] || '';
               const isEvidenceOpen = Boolean(openEvidenceById[item.id]);
-              const hasDirectLink = isDirectLink(item.link);
+              const normalizedLink = normalizeOnlineLink(item.link);
 
               return (
                 <article key={item.id} className="rounded-2xl border border-signal/25 bg-white/95 p-4 shadow-[0_8px_24px_rgba(12,12,12,0.06)]">
@@ -1060,9 +1066,9 @@ const OnlineClassesPage = ({ sectionFilter }) => {
                   </div>
 
                   {item.link ? (
-                    hasDirectLink ? (
+                    normalizedLink ? (
                       <a
-                        href={item.link}
+                        href={normalizedLink}
                         target="_blank"
                         rel="noreferrer"
                         className="mt-3 inline-flex rounded-lg bg-signal px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-signal/90"

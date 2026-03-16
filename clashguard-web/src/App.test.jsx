@@ -205,6 +205,24 @@ const onlineClassesGcr = [
   },
 ];
 
+const onlineClassesBareLink = [
+  {
+    id: 'online-bare-1',
+    rowNumber: 40,
+    sheetDay: 'Wednesday',
+    teacher: 'Farhan Ali Memon',
+    course: 'Arabic',
+    time: '11:20 to 11:55',
+    link: 'meet.google.com/tdz-zupy-xcw',
+    rawSection: 'BCS-8A',
+    resolvedSection: 'BCS-8A',
+    matchedDays: ['Wednesday'],
+    confidence: 'high',
+    matchReasons: ['direct-section-from-sheet'],
+    timetableMatches: [{ title: 'SS2034-Arab Lang. BCS-8A', day: 'Wednesday', slot: '11:20 - 11:55' }],
+  },
+];
+
 const onlineSchedule = [
   {
     id: 'sched-1',
@@ -400,6 +418,25 @@ describe('App flow', () => {
     expect(screen.getByText('FMA')).toBeInTheDocument();
     expect(screen.getByText('Shared on GCR')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Open Wednesday Class/i })).not.toBeInTheDocument();
+  });
+
+  test('temporary online classes page normalizes bare meet links into clickable urls', async () => {
+    global.fetch = makeFetchMock({ onlineClasses: onlineClassesBareLink });
+
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /Continue On Web/i }));
+    await screen.findByText('CY3005-NS BCY-6A');
+    fireEvent.change(screen.getByPlaceholderText('BCY-6A / BCS-4K'), { target: { value: 'BCS-8A' } });
+    fireEvent.click(screen.getByRole('button', { name: /Temporary Online Classes/i }));
+
+    await screen.findByText(/\[08\]_ONLINE CLASSES/i);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Wednesday' }));
+    expect(screen.getByText('Farhan Ali Memon')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Open Wednesday Class/i })).toHaveAttribute(
+      'href',
+      'https://meet.google.com/tdz-zupy-xcw',
+    );
   });
 
   test('clash report count and teacher-filtered alternatives are shown', async () => {
