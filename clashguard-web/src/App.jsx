@@ -890,6 +890,7 @@ const OnlineClassesPage = ({ sectionFilter }) => {
   const [schedule, setSchedule] = useState([]);
   const [openEvidenceById, setOpenEvidenceById] = useState({});
   const [lastFetchedAt, setLastFetchedAt] = useState('');
+  const showPrimaryLoadingState = loading && results.length === 0 && schedule.length === 0;
   const filteredResults = useMemo(() => {
     if (activeDay === 'All') return results;
     return results.filter((item) => Array.isArray(item.matchedDays) && item.matchedDays.includes(activeDay));
@@ -1006,9 +1007,14 @@ const OnlineClassesPage = ({ sectionFilter }) => {
 
           <div className="mt-4 space-y-3">
             {loading && (
-              <div className="rounded-xl border border-signal/20 bg-signal/5 px-4 py-5 text-center">
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-signal">Checking Live Online Classes</p>
-                <p className="mt-2 text-sm text-ink/70">Pulling the latest temporary online timetable and matching it with ClashGuard data.</p>
+              <div className={`rounded-xl border px-4 text-center ${showPrimaryLoadingState ? 'border-signal/30 bg-signal/10 py-8' : 'border-signal/20 bg-signal/5 py-5'}`}>
+                <div className="mx-auto h-10 w-10 rounded-full border-2 border-signal/20 border-t-signal animate-spin" />
+                <p className="mt-4 text-sm font-semibold uppercase tracking-[0.18em] text-signal">
+                  {showPrimaryLoadingState ? 'Loading Live Online Classes' : 'Refreshing Live Online Classes'}
+                </p>
+                <p className="mt-2 text-sm text-ink/70">
+                  Reading the latest teacher sheet, checking each day tab, and matching entries with ClashGuard timetable data.
+                </p>
               </div>
             )}
 

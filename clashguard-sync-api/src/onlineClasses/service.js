@@ -1,7 +1,7 @@
 import { ONLINE_CLASSES_CACHE_TTL_MS } from './constants.js';
 import { fetchOnlineSheets } from './fetchOnlineSheet.js';
 import { matchOnlineClasses } from './matchOnlineClasses.js';
-import { normalizeOnlineRow, normalizeResolvedSection, normalizeTeacherName } from './normalizeOnlineRow.js';
+import { normalizeCourseName, normalizeOnlineRow, normalizeResolvedSection, normalizeTeacherName } from './normalizeOnlineRow.js';
 import { parseOnlineSheet } from './parseOnlineSheet.js';
 
 const uniqBy = (items, getKey) => {
@@ -27,6 +27,17 @@ const shouldRefresh = () => Date.now() - state.fetchedAt > ONLINE_CLASSES_CACHE_
 
 export const getOnlineClassesState = () => ({ ...state, items: [...state.items] });
 
+const dedupeMatchedItems = (items) =>
+  uniqBy(
+    [...items].sort((a, b) => b.rowNumber - a.rowNumber),
+    (item) => [
+      String(item.sheetDay || '').toLowerCase(),
+      normalizeResolvedSection(item.resolvedSection || item.rawSection),
+      normalizeTeacherName(item.teacher),
+      normalizeCourseName(item.course),
+    ].join('|'),
+  );
+
 export const loadOnlineClasses = async (timetableClasses, { force = false } = {}) => {
   if (!force && state.items.length > 0 && !shouldRefresh()) return getOnlineClassesState();
 
@@ -35,8 +46,21 @@ export const loadOnlineClasses = async (timetableClasses, { force = false } = {}
 
   try {
     const sheets = await fetchOnlineSheets();
-    const parsedRows = sheets.flatMap(({ sheetName, text }) => parseOnlineSheet(text, sheetName)).map(normalizeOnlineRow);
-    const matched = matchOnlineClasses(parsedRows, timetableClasses);
+    const parsedRows = sheets
+      .flatMap(({ sheetName, text }) => {
+        try {
+          return parseOnlineSheet(text, sheetName);
+        } catch {
+          return [];
+        }
+      })
+      .map(normalizeOnlineRow);
+
+    if (parsedRows.length === 0) {
+      throw new Error('Online classes sheet could not be parsed right now. Please try again shortly.');
+    }
+
+    const matched = dedupeMatchedItems(matchOnlineClasses(parsedRows, timetableClasses));
 
     state.items = matched;
     state.fetchedAt = Date.now();

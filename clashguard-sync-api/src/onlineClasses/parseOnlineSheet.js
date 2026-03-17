@@ -7,10 +7,45 @@ const parseGvizResponse = (text) => {
   return JSON.parse(text.slice(start, end + 1));
 };
 
+const normalizeHeaderLabel = (value) =>
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+
 const getCellValue = (cell) => {
   if (!cell) return '';
   if (cell.v === null || cell.v === undefined) return '';
   return String(cell.v).trim();
+};
+
+const REQUIRED_COLUMNS = {
+  teacher: ['teacher name', 'teacher', 'teachername'],
+  section: ['section', 'sec', 'class section'],
+  course: ['course', 'subject', 'course title'],
+  time: ['time', 'timing', 'slot'],
+  link: ['online class link', 'link', 'online link', 'class link', 'meeting link'],
+};
+
+const findColumnIndex = (labels, aliases) =>
+  labels.findIndex((label) => aliases.includes(normalizeHeaderLabel(label)));
+
+const resolveIndexesFromLabels = (labels) => {
+  const normalizedLabels = labels.map(normalizeHeaderLabel);
+  const teacherIndex = findColumnIndex(normalizedLabels, REQUIRED_COLUMNS.teacher);
+  const sectionIndex = findColumnIndex(normalizedLabels, REQUIRED_COLUMNS.section);
+  const courseIndex = findColumnIndex(normalizedLabels, REQUIRED_COLUMNS.course);
+  const timeIndex = findColumnIndex(normalizedLabels, REQUIRED_COLUMNS.time);
+  const linkIndex = findColumnIndex(normalizedLabels, REQUIRED_COLUMNS.link);
+
+  return {
+    teacherIndex,
+    sectionIndex,
+    courseIndex,
+    timeIndex,
+    linkIndex,
+    isComplete: [teacherIndex, sectionIndex, courseIndex, timeIndex, linkIndex].every((index) => index !== -1),
+  };
 };
 
 export const parseOnlineSheet = (gvizText, sheetName = '') => {
@@ -18,19 +53,30 @@ export const parseOnlineSheet = (gvizText, sheetName = '') => {
   const cols = parsed?.table?.cols || [];
   const rows = parsed?.table?.rows || [];
 
-  const labels = cols.map((col) => String(col?.label || '').trim().toLowerCase());
-  const teacherIndex = labels.findIndex((label) => label === 'teacher name');
-  const sectionIndex = labels.findIndex((label) => label === 'section');
-  const courseIndex = labels.findIndex((label) => label === 'course');
-  const timeIndex = labels.findIndex((label) => label === 'time');
-  const linkIndex = labels.findIndex((label) => label === 'online class link');
+  let headerRowIndex = -1;
+  let { teacherIndex, sectionIndex, courseIndex, timeIndex, linkIndex, isComplete } =
+    resolveIndexesFromLabels(cols.map((col) => String(col?.label || '')));
 
-  if ([teacherIndex, sectionIndex, courseIndex, timeIndex, linkIndex].some((index) => index === -1)) {
-    throw new Error('Online classes sheet is missing required columns');
+  if (!isComplete) {
+    for (let rowIndex = 0; rowIndex < Math.min(rows.length, 6); rowIndex += 1) {
+      const headerLabels = (rows[rowIndex]?.c || []).map((cell) => getCellValue(cell));
+      const headerIndexes = resolveIndexesFromLabels(headerLabels);
+      if (headerIndexes.isComplete) {
+        headerRowIndex = rowIndex;
+        ({ teacherIndex, sectionIndex, courseIndex, timeIndex, linkIndex } = headerIndexes);
+        isComplete = true;
+        break;
+      }
+    }
+  }
+
+  if (!isComplete) {
+    return [];
   }
 
   return rows
     .map((row, index) => {
+      if (headerRowIndex !== -1 && index <= headerRowIndex) return null;
       const cells = row?.c || [];
       return {
         id: `online-${index + 1}`,
@@ -43,6 +89,7 @@ export const parseOnlineSheet = (gvizText, sheetName = '') => {
         link: getCellValue(cells[linkIndex]),
       };
     })
+    .filter(Boolean)
     .filter((row) => row.teacher || row.section || row.course || row.time || row.link)
     .filter((row) => row.teacher && row.course);
 };

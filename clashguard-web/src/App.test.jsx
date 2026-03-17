@@ -368,6 +368,30 @@ describe('App flow', () => {
     expect(screen.getByText('AI4015-AAI BCS-8A | Wednesday')).toBeInTheDocument();
   });
 
+  test('temporary online classes page shows a clear loading state while live sheet data is loading', async () => {
+    const deferred = createDeferred();
+    global.fetch = vi.fn((input) => {
+      const url = String(input || '');
+      if (url.includes('/online-classes')) return deferred.promise;
+      return Promise.resolve(mockClassesResponse(mockClasses));
+    });
+
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /Continue On Web/i }));
+    await screen.findByText('CY3005-NS BCY-6A');
+    fireEvent.change(screen.getByPlaceholderText('BCY-6A / BCS-4K'), { target: { value: 'BCS-8A' } });
+    fireEvent.click(screen.getByRole('button', { name: /Temporary Online Classes/i }));
+
+    await screen.findByText(/\[08\]_ONLINE CLASSES/i);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(screen.getByText(/Loading Live Online Classes/i)).toBeInTheDocument();
+    expect(screen.getByText(/checking each day tab/i)).toBeInTheDocument();
+
+    deferred.resolve(mockOnlineClassesResponse(onlineClasses));
+    await screen.findByText('Agentic AI');
+  });
+
   test('temporary online classes page shows a section-specific empty state', async () => {
     global.fetch = makeFetchMock({ onlineClasses: [] });
 
