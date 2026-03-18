@@ -23,6 +23,9 @@ const state = {
   error: null,
 };
 
+let onlineClassesRefreshTimer = null;
+let onlineClassesLoadPromise = null;
+
 const shouldRefresh = () => Date.now() - state.fetchedAt > ONLINE_CLASSES_CACHE_TTL_MS;
 
 export const getOnlineClassesState = () => ({ ...state, items: [...state.items] });
@@ -40,37 +43,70 @@ const dedupeMatchedItems = (items) =>
 
 export const loadOnlineClasses = async (timetableClasses, { force = false } = {}) => {
   if (!force && state.items.length > 0 && !shouldRefresh()) return getOnlineClassesState();
+  if (onlineClassesLoadPromise) return onlineClassesLoadPromise;
 
-  state.status = 'syncing';
-  state.error = null;
+  onlineClassesLoadPromise = (async () => {
+    state.status = 'syncing';
+    state.error = null;
 
-  try {
-    const sheets = await fetchOnlineSheets();
-    const parsedRows = sheets
-      .flatMap(({ sheetName, text }) => {
-        try {
-          return parseOnlineSheet(text, sheetName);
-        } catch {
-          return [];
-        }
-      })
-      .map(normalizeOnlineRow);
+    try {
+      const sheets = await fetchOnlineSheets();
+      const parsedRows = sheets
+        .flatMap(({ sheetName, text }) => {
+          try {
+            return parseOnlineSheet(text, sheetName);
+          } catch {
+            return [];
+          }
+        })
+        .map(normalizeOnlineRow);
 
-    if (parsedRows.length === 0) {
-      throw new Error('Online classes sheet could not be parsed right now. Please try again shortly.');
+      if (parsedRows.length === 0) {
+        throw new Error('Online classes sheet could not be parsed right now. Please try again shortly.');
+      }
+
+      const matched = dedupeMatchedItems(matchOnlineClasses(parsedRows, timetableClasses));
+
+      state.items = matched;
+      state.fetchedAt = Date.now();
+      state.status = 'ok';
+      return getOnlineClassesState();
+    } catch (error) {
+      state.status = 'error';
+      state.error = error.message;
+      throw error;
+    } finally {
+      onlineClassesLoadPromise = null;
     }
+  })();
 
-    const matched = dedupeMatchedItems(matchOnlineClasses(parsedRows, timetableClasses));
+  return onlineClassesLoadPromise;
+};
 
-    state.items = matched;
-    state.fetchedAt = Date.now();
-    state.status = 'ok';
-    return getOnlineClassesState();
-  } catch (error) {
-    state.status = 'error';
-    state.error = error.message;
-    throw error;
+export const warmOnlineClasses = async (timetableClasses, { force = false } = {}) => {
+  if (!Array.isArray(timetableClasses) || timetableClasses.length === 0) return null;
+  try {
+    return await loadOnlineClasses(timetableClasses, { force });
+  } catch {
+    return null;
   }
+};
+
+export const startOnlineClassesRefresh = (getTimetableClasses) => {
+  if (onlineClassesRefreshTimer) clearInterval(onlineClassesRefreshTimer);
+
+  const refresh = () => {
+    const classes = typeof getTimetableClasses === 'function' ? getTimetableClasses() : [];
+    void warmOnlineClasses(classes, { force: true });
+  };
+
+  refresh();
+  onlineClassesRefreshTimer = setInterval(refresh, ONLINE_CLASSES_CACHE_TTL_MS);
+};
+
+export const stopOnlineClassesRefresh = () => {
+  if (onlineClassesRefreshTimer) clearInterval(onlineClassesRefreshTimer);
+  onlineClassesRefreshTimer = null;
 };
 
 export const queryOnlineClasses = async (timetableClasses, query = {}) => {

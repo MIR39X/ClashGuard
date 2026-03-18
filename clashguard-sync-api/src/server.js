@@ -2,6 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import { createHash } from 'node:crypto';
 import { onlineClassesRouter } from './onlineClasses/routes.js';
+import { startOnlineClassesRefresh, stopOnlineClassesRefresh } from './onlineClasses/service.js';
 import { config } from './config.js';
 import { sectionClashes } from './parser.js';
 import { getSyncState, runSync, startAutoSync, stopAutoSync } from './syncService.js';
@@ -149,11 +150,13 @@ app.get('/share/:code', (req, res) => {
 
 const server = app.listen(config.port, async () => {
   await startAutoSync();
+  startOnlineClassesRefresh(() => getSyncState().classes);
   // eslint-disable-next-line no-console
   console.log(`ClashGuard Sync API running on http://localhost:${config.port}`);
 });
 
 const shutdown = () => {
+  stopOnlineClassesRefresh();
   stopAutoSync();
   server.close(() => process.exit(0));
 };
