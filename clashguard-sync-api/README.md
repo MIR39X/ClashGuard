@@ -45,6 +45,8 @@ Auto-sync backend that fetches timetable data from a source endpoint and keeps y
 - `GET /classes`
   - optional filters: `section`, `day`, `course`
 - `GET /clashes?section=BCY-6A`
+- `POST /share`
+- `GET /share/:code`
 
 ## Example
 

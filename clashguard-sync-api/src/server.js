@@ -1,8 +1,6 @@
 import cors from 'cors';
 import express from 'express';
 import { createHash } from 'node:crypto';
-import { onlineClassesRouter } from './onlineClasses/routes.js';
-import { startOnlineClassesRefresh, stopOnlineClassesRefresh } from './onlineClasses/service.js';
 import { config } from './config.js';
 import { sectionClashes } from './parser.js';
 import { getSyncState, runSync, startAutoSync, stopAutoSync } from './syncService.js';
@@ -34,8 +32,6 @@ app.get('/', (_req, res) => {
       'POST /sync/trigger',
       'GET /classes?section=BCY-6A',
       'GET /clashes?section=BCY-6A',
-      'GET /online-classes?section=BCS-8A',
-      'GET /online-classes/status',
       'POST /share',
       'GET /share/:code',
     ],
@@ -103,8 +99,6 @@ app.get('/clashes', (req, res) => {
   res.json({ section, count: clashes.length, clashes });
 });
 
-app.use('/online-classes', onlineClassesRouter);
-
 const cleanupExpiredShares = () => {
   const now = Date.now();
   for (const [code, value] of shareStore.entries()) {
@@ -150,13 +144,11 @@ app.get('/share/:code', (req, res) => {
 
 const server = app.listen(config.port, async () => {
   await startAutoSync();
-  startOnlineClassesRefresh(() => getSyncState().classes);
   // eslint-disable-next-line no-console
   console.log(`ClashGuard Sync API running on http://localhost:${config.port}`);
 });
 
 const shutdown = () => {
-  stopOnlineClassesRefresh();
   stopAutoSync();
   server.close(() => process.exit(0));
 };
