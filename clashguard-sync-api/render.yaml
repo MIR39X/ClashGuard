@@ -14,4 +14,6 @@ services:
       - key: SYNC_INTERVAL_MS
         value: "900000"
       - key: CORS_ORIGIN
-        value: "*"
+        value: https://clashguard.vercel.app
+      - key: ADMIN_SYNC_TOKEN
+        generateValue: true

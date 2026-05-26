@@ -30,6 +30,9 @@ Auto-sync backend that fetches timetable data from a source endpoint and keeps y
   - dev: `*`
   - production: set your frontend domain(s), comma-separated
     - example: `https://your-frontend.vercel.app,https://your-frontend.onrender.com`
+- `ADMIN_SYNC_TOKEN`:
+  - required for `POST /sync/trigger`
+  - send it as the `x-admin-token` header when manually triggering a sync
 
 ## Auto-Sync
 
@@ -42,6 +45,7 @@ Auto-sync backend that fetches timetable data from a source endpoint and keeps y
 - `GET /health`
 - `GET /sync/status`
 - `POST /sync/trigger`
+  - requires `x-admin-token`
 - `GET /classes`
   - optional filters: `section`, `day`, `course`
 - `GET /clashes?section=BCY-6A`

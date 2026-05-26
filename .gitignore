@@ -41,3 +41,6 @@ jdk17.zip
 jdk21.zip
 jdk17/
 jdk21/
+
+# Local proposal document
+output/doc/ClashGuard_Project_Proposal.docx
