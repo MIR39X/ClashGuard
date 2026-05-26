@@ -200,7 +200,7 @@ cd clashguard-sync-api && npm audit --audit-level=high
 
 <div align="center">
 
-Made for FAST-NUCES Karachi students &nbsp;·&nbsp; **Arsalan Mir** (23K-2085) · **Vishal Dodeja** (23K-2013)
+Made for FAST-NUCES Karachi students &nbsp;·&nbsp; **Arsalan Mir** (23K-2085)
 
 [![GitHub](https://img.shields.io/badge/GitHub-MIR39X-181717?style=flat-square&logo=github)](https://github.com/MIR39X)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Arsalan_Mir-0A66C2?style=flat-square&logo=linkedin)](https://www.linkedin.com/in/arsalan-mir-24a62328a)
