@@ -587,6 +587,7 @@ const SelectPage = ({ sectionFilter, setSectionFilter, allClasses, setAllClasses
   const location = useLocation();
   const [loading, setLoading] = useState(() => allClasses.length === 0);
   const [error, setError] = useState('');
+  const [coldStart, setColdStart] = useState(false);
   const [query, setQuery] = useState('');
   const [showSelectedModal, setShowSelectedModal] = useState(false);
   const [showSelectionRequiredModal, setShowSelectionRequiredModal] = useState(false);
@@ -635,15 +636,19 @@ const SelectPage = ({ sectionFilter, setSectionFilter, allClasses, setAllClasses
     );
   }, [allClasses, query, sectionFilter]);
 
-  const fetchClasses = async ({ silent = false } = {}) => {
+  const fetchClasses = async ({ silent = false, _retryCount = 0 } = {}) => {
     if (!silent) {
       setLoading(true);
       setError('');
+      setColdStart(false);
     }
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10_000);
     try {
       const knownEtag = localStorage.getItem(CLASSES_ETAG_KEY);
       const headers = knownEtag ? { 'If-None-Match': knownEtag } : {};
-      const response = await fetch(`${API_BASE}/classes`, { headers });
+      const response = await fetch(`${API_BASE}/classes`, { headers, signal: controller.signal });
+      clearTimeout(timeoutId);
       const responseEtag = response.headers.get('etag');
 
       if (response.status === 304) {
@@ -652,6 +657,7 @@ const SelectPage = ({ sectionFilter, setSectionFilter, allClasses, setAllClasses
         localStorage.setItem(CLASSES_FETCHED_AT_KEY, String(now));
         if (responseEtag) localStorage.setItem(CLASSES_ETAG_KEY, responseEtag);
         if (silent) setError('');
+        setColdStart(false);
         return;
       }
 
@@ -664,12 +670,23 @@ const SelectPage = ({ sectionFilter, setSectionFilter, allClasses, setAllClasses
       localStorage.setItem(CLASSES_FETCHED_AT_KEY, String(now));
       if (responseEtag) localStorage.setItem(CLASSES_ETAG_KEY, responseEtag);
       if (silent) setError('');
+      setColdStart(false);
     } catch (err) {
+      clearTimeout(timeoutId);
+      const isTimeout = err.name === 'AbortError';
+      if (isTimeout && _retryCount < 4) {
+        setColdStart(true);
+        setError('');
+        setTimeout(() => fetchClasses({ silent, _retryCount: _retryCount + 1 }), 8_000);
+        return;
+      }
+      setColdStart(false);
+      const message = isTimeout ? 'Server took too long to respond. Please try again.' : err.message;
       if (allClasses.length === 0) {
         setAllClasses([]);
-        setError(err.message);
+        setError(message);
       } else if (!silent) {
-        setError(err.message);
+        setError(message);
       }
     } finally {
       if (!silent) setLoading(false);
@@ -749,7 +766,12 @@ const SelectPage = ({ sectionFilter, setSectionFilter, allClasses, setAllClasses
                   </p>
                 )}
               </div>
-              {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
+              {coldStart && !error && (
+                <p className="mt-2 text-sm text-amber-700">
+                  Server is warming up — this takes ~30s on first load. Retrying automatically...
+                </p>
+              )}
+              {error && !coldStart && <p className="mt-2 text-sm text-red-700">{error}</p>}
             </div>
 
             <div className="rounded-xl border border-signal/30 bg-white/70 p-4 sm:pt-5">

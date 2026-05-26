@@ -33,6 +33,9 @@ Thumbs.db
 # External reference repo
 Fast-Timetable/
 
+# Share store persistence (backend runtime data)
+**/.data/
+
 # Local notes
 agent.md
 

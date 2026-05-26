@@ -5,10 +5,10 @@ import helmet from 'helmet';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { config } from './config.js';
 import { sectionClashes } from './parser.js';
+import { shareStore } from './shareStore.js';
 import { getSyncState, runSync, startAutoSync, stopAutoSync } from './syncService.js';
 
 const app = express();
-const shareStore = new Map();
 const SHARE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_SHARE_ENTRIES = 80;
 const MAX_TEXT_LENGTH = 160;
