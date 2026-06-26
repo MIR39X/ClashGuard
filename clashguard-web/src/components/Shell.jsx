@@ -121,6 +121,9 @@ export const Shell = ({ children }) => {
           <button onClick={() => setShowAbout(true)} className={`${BTN_BASE} hidden sm:inline-flex`}>
             About Me
           </button>
+          <button onClick={() => navigate('/summer')} className={`${BTN_BASE} hidden sm:inline-flex`}>
+            Summer
+          </button>
         </div>
         <img
           src={HEADER_MOBILE_LOGO}
@@ -131,12 +134,6 @@ export const Shell = ({ children }) => {
           <img src={HEADER_WEBSITE_LOGO} alt="ClashGuard" className="theme-logo h-40 w-auto max-w-[1400px] object-contain" />
         </div>
         <div className="ml-auto flex min-w-0 items-center gap-2">
-          <button
-            onClick={() => navigate('/summer')}
-            className="hidden truncate text-[10px] tracking-[0.22em] text-signal transition hover:text-signal/70 lg:block lg:text-xs lg:tracking-[0.3em]"
-          >
-            SUMMER 2026
-          </button>
           {!isNativeApp && (
             <a
               href={APK_DOWNLOAD_URL}
@@ -152,12 +149,18 @@ export const Shell = ({ children }) => {
       </header>
       {children}
       {location.pathname === '/' && (
-        <div className="mx-auto mt-2 w-full max-w-7xl text-center sm:hidden">
+        <div className="mx-auto mt-2 w-full max-w-7xl flex items-center justify-center gap-4 sm:hidden">
           <button
             onClick={() => setShowAbout(true)}
             className="text-[11px] font-semibold uppercase tracking-[0.16em] text-signal/80 underline underline-offset-4"
           >
             About Developer
+          </button>
+          <button
+            onClick={() => navigate('/summer')}
+            className="text-[11px] font-semibold uppercase tracking-[0.16em] text-signal/80 underline underline-offset-4"
+          >
+            Summer Break
           </button>
         </div>
       )}
