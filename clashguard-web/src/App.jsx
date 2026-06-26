@@ -576,54 +576,6 @@ function App() {
             />
           }
         />
-        <Route path="/timetable" element={<TimetablePage allClasses={allClasses} selectedCourses={selectedCourses} />} />
-        <Route path="/clashes" element={<ClashReportPage allClasses={allClasses} selectedCourses={selectedCourses} />} />
-        <Route
-          path="/alternatives"
-          element={
-            <AlternativesPage
-              allClasses={allClasses}
-              selectedCourses={selectedCourses}
-              setSelectedCourses={setSelectedCourses}
-            />
-          }
-        />
-        <Route
-          path="/friends"
-          element={
-            <FriendsPage
-              allClasses={allClasses}
-              selectedCourses={selectedCourses}
-              friends={friends}
-              setFriends={setFriends}
-            />
-          }
-        />
-        <Route
-          path="/grades"
-          element={
-            <GradesPage
-              selectedCourses={selectedCourses}
-              gradesData={gradesData}
-              gradeRanges={gradeRanges}
-              courseCredits={courseCredits}
-              setCourseCredits={setCourseCredits}
-            />
-          }
-        />
-        <Route
-          path="/grades/:courseKey"
-          element={
-            <GradeCoursePage
-              selectedCourses={selectedCourses}
-              gradesData={gradesData}
-              setGradesData={setGradesData}
-              gradeRanges={gradeRanges}
-              courseCredits={courseCredits}
-            />
-          }
-        />
-        <Route path="/settings" element={<SettingsPage gradeRanges={gradeRanges} setGradeRanges={setGradeRanges} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
