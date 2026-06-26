@@ -8,10 +8,10 @@ import {
 } from '../constants';
 
 const VIBES = [
-  { tag: 'Rest', line: 'Sleep past noon. Set zero alarms.' },
-  { tag: 'Beach', line: 'Trade lectures for shoreline.' },
-  { tag: 'Games', line: 'The backlog won\'t clear itself.' },
-  { tag: 'Nights', line: 'No morning labs. The night is yours.' },
+  { tag: 'Rest', headline: 'Sleep In', line: 'Sleep past noon. Set zero alarms.' },
+  { tag: 'Beach', headline: 'Hit The Waves', line: 'Trade lectures for shoreline.' },
+  { tag: 'Games', headline: 'Clear The Backlog', line: "The backlog won't clear itself." },
+  { tag: 'Nights', headline: 'Stay Up Late', line: 'No morning labs. The night is yours.' },
 ];
 
 const SummerPage = () => {
@@ -23,19 +23,21 @@ const SummerPage = () => {
     window.Capacitor.isNativePlatform();
 
   return (
-    <div className="h-screen overflow-hidden flex flex-col px-3 pt-4 sm:px-5 sm:pt-6 md:px-8 lg:px-10"
-      style={{ background: 'radial-gradient(circle at 12% 8%, rgba(74,124,214,0.2) 0%, transparent 38%), radial-gradient(circle at 86% 84%, rgba(30,103,135,0.16) 0%, transparent 36%), linear-gradient(180deg,#d9e3f3 0%,#d3deef 100%)' }}
+    <div
+      className="h-screen overflow-hidden flex flex-col px-3 pt-4 sm:px-5 sm:pt-6 md:px-8 lg:px-10"
+      style={{
+        background:
+          'radial-gradient(circle at 12% 8%, rgba(74,124,214,0.2) 0%, transparent 38%), radial-gradient(circle at 86% 84%, rgba(30,103,135,0.16) 0%, transparent 36%), linear-gradient(180deg,#d9e3f3 0%,#d3deef 100%)',
+      }}
     >
-      {/* Decorative blobs */}
       <div className="pointer-events-none fixed -right-16 top-24 h-36 w-36 rounded-full bg-signal/20 blur-2xl animate-pulse-slow" />
       <div className="pointer-events-none fixed -left-20 bottom-12 h-44 w-44 rounded-full bg-blue-400/25 blur-2xl animate-pulse-slow" />
 
       {/* Header */}
       <header className="relative mx-auto flex w-full max-w-7xl shrink-0 items-center justify-between gap-2 border-t-4 border-signal pt-4 sm:gap-3 sm:pt-5">
-        <button onClick={() => setShowAbout(true)} className={`${BTN_BASE}`}>
+        <button onClick={() => setShowAbout(true)} className={BTN_BASE}>
           About Me
         </button>
-
         <img
           src={HEADER_MOBILE_LOGO}
           alt="ClashGuard"
@@ -44,39 +46,30 @@ const SummerPage = () => {
         <div className="pointer-events-none absolute left-1/2 top-[calc(50%+10px)] hidden -translate-x-1/2 -translate-y-1/2 sm:block">
           <img src={HEADER_WEBSITE_LOGO} alt="ClashGuard" className="theme-logo h-40 w-auto object-contain" />
         </div>
-
         {!isNativeApp && (
-          <a
-            href={APK_DOWNLOAD_URL}
-            target="_blank"
-            rel="noreferrer"
-            className={BTN_BASE}
-          >
+          <a href={APK_DOWNLOAD_URL} target="_blank" rel="noreferrer" className={BTN_BASE}>
             <span className="sm:hidden">APK</span>
             <span className="hidden sm:inline">Download APK</span>
           </a>
         )}
       </header>
 
-      {/* Main content — fills remaining height */}
+      {/* Main */}
       <main className="mx-auto mt-4 flex w-full max-w-7xl flex-1 min-h-0 flex-col gap-3 pb-4 sm:mt-5 sm:pb-5 lg:flex-row lg:gap-4">
 
         {/* Left — hero */}
-        <section className="animate-rise flex flex-col justify-between rounded-2xl border border-signal/35 bg-white/65 p-5 backdrop-blur-sm lg:w-[42%] lg:p-8 [animation-delay:60ms]">
-          <div>
-            <p className="text-[9px] uppercase tracking-[0.28em] text-signal/60">[00]_No Classes Detected</p>
-            <h1 className="font-display text-signal mt-1 text-[clamp(4rem,12vw,9rem)] leading-[0.85] tracking-wide sm:text-[clamp(5rem,14vw,10rem)] lg:text-[clamp(4rem,7vw,8rem)]">
-              SUMMER
-              <br />
-              BREAK
-            </h1>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-ink/55 sm:text-sm">
-              Semester over &mdash; ClashGuard has nothing to guard against.
-              <br className="hidden sm:block" /> Go be a person.
+        <section className="animate-rise flex flex-col rounded-2xl border border-signal/35 bg-white/65 p-5 backdrop-blur-sm lg:w-[40%] lg:p-7 [animation-delay:60ms]">
+          <p className="text-[9px] uppercase tracking-[0.28em] text-signal/60 mb-1">[00]_No Classes Detected</p>
+          <h1 className="font-display text-signal leading-[0.85] tracking-wide text-[clamp(4.5rem,13vw,7rem)] lg:text-[clamp(4rem,6.5vw,7rem)]">
+            SUMMER
+            <br />
+            BREAK
+          </h1>
+          <div className="mt-auto pt-5 border-t border-signal/15">
+            <p className="text-xs uppercase tracking-[0.18em] text-ink/55 leading-relaxed">
+              Semester over — ClashGuard has nothing to guard against. Go be a person.
             </p>
-            <p className="mt-3 text-[10px] uppercase tracking-[0.22em] text-signal/50">
+            <p className="mt-2 text-[10px] uppercase tracking-[0.22em] text-signal/45">
               See you next semester.
             </p>
           </div>
@@ -88,26 +81,29 @@ const SummerPage = () => {
           {/* Status card */}
           <div className="rounded-2xl border border-signal/35 bg-white/65 p-5 backdrop-blur-sm sm:p-6">
             <p className="text-[9px] uppercase tracking-[0.28em] text-signal/60">Status Report</p>
-            <p className="font-display mt-1 text-signal text-[clamp(1.3rem,3.5vw,2.6rem)] leading-tight tracking-wide">
+            <p className="font-display mt-1 text-signal leading-tight tracking-wide text-[clamp(1.4rem,3vw,2.2rem)]">
               Zero Lectures. Zero Assignments. Infinite Potential.
             </p>
-            <p className="mt-2 text-xs leading-relaxed text-ink/65 sm:text-sm">
+            <p className="mt-2 text-xs leading-relaxed text-ink/60">
               The timetable is empty. ClashGuard has nothing to guard against — and for once, that is a wonderful thing.
             </p>
           </div>
 
-          {/* Vibe cards grid */}
+          {/* Vibe cards */}
           <div className="grid flex-1 min-h-0 grid-cols-2 gap-3">
             {VIBES.map((v, i) => (
               <article
                 key={v.tag}
-                className="animate-rise flex flex-col justify-between rounded-2xl border border-ink/12 bg-white/80 p-4 backdrop-blur-sm sm:p-5"
+                className="animate-rise rounded-2xl border border-ink/10 bg-white/80 p-4 backdrop-blur-sm sm:p-5"
                 style={{ animationDelay: `${200 + i * 55}ms` }}
               >
-                <span className="inline-block self-start rounded-full border border-signal/30 bg-ash px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-signal">
+                <span className="inline-block rounded-full border border-signal/30 bg-ash px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-signal">
                   {v.tag}
                 </span>
-                <p className="mt-2 text-xs leading-relaxed text-ink/65 sm:text-sm">{v.line}</p>
+                <p className="font-display mt-2 text-signal tracking-wide text-[clamp(1.1rem,2.2vw,1.6rem)]">
+                  {v.headline}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-ink/55">{v.line}</p>
               </article>
             ))}
           </div>
