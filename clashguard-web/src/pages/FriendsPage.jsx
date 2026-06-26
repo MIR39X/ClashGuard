@@ -195,7 +195,7 @@ const FriendsPage = ({ allClasses, selectedCourses, friends, setFriends }) => {
     if (selectedFriendId === id) setSelectedFriendId('');
   };
 
-  if (selectedCourses.length < 1) return <Navigate to="/select" replace state={{ selectionRequired: true }} />;
+  if (selectedCourses.length < 1) return <Navigate to="/" replace state={{ selectionRequired: true }} />;
 
   return (
     <Shell>

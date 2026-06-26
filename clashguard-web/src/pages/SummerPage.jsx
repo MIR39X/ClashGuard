@@ -8,10 +8,36 @@ import {
 } from '../constants';
 
 const VIBES = [
-  { tag: 'Rest', headline: 'Sleep In', line: 'Sleep past noon. Set zero alarms.' },
-  { tag: 'Beach', headline: 'Hit The Waves', line: 'Trade lectures for shoreline.' },
-  { tag: 'Games', headline: 'Clear The Backlog', line: "The backlog won't clear itself." },
-  { tag: 'Nights', headline: 'Stay Up Late', line: 'No morning labs. The night is yours.' },
+  {
+    tag: 'Rest',
+    headline: 'Sleep In',
+    line: 'Sleep past noon. Set zero alarms. Your body has been running on caffeine and panic since January. It deserves actual rest.',
+  },
+  {
+    tag: 'Beach',
+    headline: 'Hit The Waves',
+    line: 'Trade lectures for shoreline. Swap assignment deadlines for actual horizons. Go outside for once. It still exists.',
+  },
+  {
+    tag: 'Games',
+    headline: 'Clear The Backlog',
+    line: "You've been adding games to your library all semester with zero time to play. That excuse is officially gone.",
+  },
+  {
+    tag: 'Food',
+    headline: 'Eat Whatever',
+    line: 'No dining hall schedules. No eating between back-to-back classes. Cook something, order something, eat at 2 AM. Your call.',
+  },
+  {
+    tag: 'Skills',
+    headline: 'Learn For Fun',
+    line: 'Pick up something with zero career value. Juggling, painting, a new language. Anything that has nothing to do with your degree.',
+  },
+  {
+    tag: 'Nights',
+    headline: 'Stay Up Late',
+    line: 'No 8 AM labs. No morning quizzes. The night is yours. Use it however you want with zero guilt.',
+  },
 ];
 
 const SummerPage = () => {
@@ -24,7 +50,7 @@ const SummerPage = () => {
 
   return (
     <div
-      className="h-screen overflow-hidden flex flex-col px-3 pt-4 sm:px-5 sm:pt-6 md:px-8 lg:px-10"
+      className="min-h-screen px-3 pt-4 pb-8 sm:px-5 sm:pt-6 md:px-8 lg:px-10"
       style={{
         background:
           'radial-gradient(circle at 12% 8%, rgba(74,124,214,0.2) 0%, transparent 38%), radial-gradient(circle at 86% 84%, rgba(30,103,135,0.16) 0%, transparent 36%), linear-gradient(180deg,#d9e3f3 0%,#d3deef 100%)',
@@ -34,7 +60,7 @@ const SummerPage = () => {
       <div className="pointer-events-none fixed -left-20 bottom-12 h-44 w-44 rounded-full bg-blue-400/25 blur-2xl animate-pulse-slow" />
 
       {/* Header */}
-      <header className="relative mx-auto flex w-full max-w-7xl shrink-0 items-center justify-between gap-2 border-t-4 border-signal pt-4 sm:gap-3 sm:pt-5">
+      <header className="relative mx-auto flex w-full max-w-7xl items-center justify-between gap-2 border-t-4 border-signal pt-4 sm:gap-3 sm:pt-5">
         <button onClick={() => setShowAbout(true)} className={BTN_BASE}>
           About Me
         </button>
@@ -54,67 +80,87 @@ const SummerPage = () => {
         )}
       </header>
 
-      {/* Main */}
-      <main className="mx-auto mt-4 flex w-full max-w-7xl flex-1 min-h-0 flex-col gap-3 pb-4 sm:mt-5 sm:pb-5 lg:flex-row lg:gap-4">
+      <main className="mx-auto mt-4 w-full max-w-7xl space-y-3 sm:mt-6 sm:space-y-4">
 
-        {/* Left — hero */}
-        <section className="animate-rise flex flex-col rounded-2xl border border-signal/35 bg-white/65 p-5 backdrop-blur-sm lg:w-[40%] lg:p-7 [animation-delay:60ms]">
-          <p className="shrink-0 text-[9px] uppercase tracking-[0.28em] text-signal/60">[00]_No Classes Detected</p>
-          <div className="flex flex-1 items-center">
-            <h1 className="font-display text-signal leading-[0.85] tracking-wide text-[clamp(4.5rem,13vw,7rem)] lg:text-[clamp(4rem,6.5vw,7rem)]">
-              SUMMER
-              <br />
-              BREAK
-            </h1>
+        {/* Hero */}
+        <section className="animate-rise rounded-2xl border border-signal/35 bg-white/65 p-4 backdrop-blur-sm sm:p-6 [animation-delay:60ms]">
+          <p className="text-sm uppercase tracking-[0.22em] text-signal/70 sm:text-base md:text-lg">[00]_No Classes Detected</p>
+          <h1 className="font-display text-signal mt-0.5 text-[clamp(3rem,11vw,9rem)] leading-[0.85] tracking-wide">
+            SUMMER
+            <br />
+            BREAK
+          </h1>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {['JUN', 'JUL', 'AUG'].map((m, i) => (
+              <div key={m} className="rounded-xl border border-signal/20 bg-signal/5 px-2 py-2 text-center sm:px-3">
+                <p className="font-display text-signal text-lg tracking-wide sm:text-2xl">{m}</p>
+                <p className="text-[8px] uppercase tracking-[0.15em] text-ink/40 mt-0.5 sm:text-[9px]">Month {i + 1}</p>
+              </div>
+            ))}
           </div>
-          <div className="shrink-0 border-t border-signal/15 pt-4">
-            <p className="text-xs uppercase tracking-[0.18em] text-ink/55 leading-relaxed">
-              Semester over — ClashGuard has nothing to guard against. Go be a person.
-            </p>
-            <p className="mt-2 text-[10px] uppercase tracking-[0.22em] text-signal/45">
-              See you next semester.
-            </p>
-          </div>
+          <p className="mt-3 max-w-2xl text-xs uppercase tracking-[0.14em] text-ink/55 leading-relaxed">
+            Semester over. ClashGuard has nothing to guard against. And for once, that is a wonderful thing. Go be a person.
+          </p>
         </section>
 
-        {/* Right — status + vibes */}
-        <section className="animate-rise flex min-h-0 flex-1 flex-col gap-3 [animation-delay:140ms]">
+        {/* Status */}
+        <section className="animate-rise rounded-2xl border border-signal/35 bg-white/65 p-4 backdrop-blur-sm sm:p-6 [animation-delay:140ms]">
+          <p className="text-[9px] uppercase tracking-[0.24em] text-signal/60">Status Report</p>
+          <p className="font-display mt-1.5 text-signal leading-tight tracking-wide text-[clamp(1.4rem,4.5vw,3.5rem)]">
+            Zero Lectures. Zero Assignments. Infinite Potential.
+          </p>
+          <p className="mt-2 max-w-2xl text-xs leading-relaxed text-ink/65 sm:text-sm">
+            The timetable is empty. Every slot that used to be a lecture is now yours. Use it badly, use it brilliantly. Just use it however you want.
+          </p>
+        </section>
 
-          {/* Status card */}
-          <div className="rounded-2xl border border-signal/35 bg-white/65 p-5 backdrop-blur-sm sm:p-6">
-            <p className="text-[9px] uppercase tracking-[0.28em] text-signal/60">Status Report</p>
-            <p className="font-display mt-1 text-signal leading-tight tracking-wide text-[clamp(1.4rem,3vw,2.2rem)]">
-              Zero Lectures. Zero Assignments. Infinite Potential.
-            </p>
-            <p className="mt-2 text-xs leading-relaxed text-ink/60">
-              The timetable is empty. ClashGuard has nothing to guard against — and for once, that is a wonderful thing.
-            </p>
-          </div>
-
-          {/* Vibe cards */}
-          <div className="grid flex-1 min-h-0 grid-cols-2 gap-3">
+        {/* Activity grid */}
+        <section className="animate-rise [animation-delay:220ms]">
+          <p className="mb-2 px-1 text-[9px] uppercase tracking-[0.24em] text-signal/60">Approved Summer Activities</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {VIBES.map((v, i) => (
               <article
                 key={v.tag}
-                className="animate-rise flex flex-col justify-center gap-2 rounded-2xl border border-ink/10 bg-white/80 p-4 backdrop-blur-sm sm:p-5"
-                style={{ animationDelay: `${200 + i * 55}ms` }}
+                className="animate-rise rounded-2xl border border-ink/10 bg-white/80 p-4 backdrop-blur-sm sm:p-5"
+                style={{ animationDelay: `${280 + i * 60}ms` }}
               >
-                <span className="self-start rounded-full border border-signal/30 bg-ash px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-signal">
+                <span className="inline-block rounded-full border border-signal/30 bg-ash px-2 py-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] text-signal sm:text-[9px]">
                   {v.tag}
                 </span>
-                <p className="font-display text-signal tracking-wide text-[clamp(1.1rem,2.2vw,1.6rem)] leading-tight">
+                <p className="font-display mt-2 text-signal tracking-wide text-[clamp(1rem,3.5vw,1.8rem)] leading-tight">
                   {v.headline}
                 </p>
-                <p className="text-xs leading-relaxed text-ink/55">{v.line}</p>
+                <p className="mt-1.5 text-xs leading-relaxed text-ink/60">{v.line}</p>
               </article>
             ))}
           </div>
-
         </section>
+
+        {/* Footer cards */}
+        <section className="animate-rise grid gap-3 sm:grid-cols-2 [animation-delay:360ms]">
+          <div className="rounded-2xl border border-signal/35 bg-white/65 p-4 backdrop-blur-sm sm:p-6">
+            <p className="text-[9px] uppercase tracking-[0.24em] text-signal/60">Friendly Reminder</p>
+            <p className="font-display mt-1.5 text-signal leading-tight tracking-wide text-[clamp(1.2rem,3vw,2.4rem)]">
+              You Survived The Semester
+            </p>
+            <p className="mt-2 text-xs leading-relaxed text-ink/65 sm:text-sm">
+              Clashes resolved. Grades calculated. Timetable conquered. Whatever it threw at you, you made it to the other side. That deserves actual rest.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-signal/35 bg-white/65 p-4 backdrop-blur-sm sm:p-6">
+            <p className="text-[9px] uppercase tracking-[0.24em] text-signal/60">When It&apos;s Time</p>
+            <p className="font-display mt-1.5 text-signal leading-tight tracking-wide text-[clamp(1.2rem,3vw,2.4rem)]">
+              We&apos;ll Be Here
+            </p>
+            <p className="mt-2 text-xs leading-relaxed text-ink/65 sm:text-sm">
+              New semester, new courses, new clashes to find. When registration opens again ClashGuard is ready. Until then, close the tab and go live your life.
+            </p>
+          </div>
+        </section>
+
       </main>
 
-      {/* Footer */}
-      <footer className="mx-auto w-full max-w-7xl shrink-0 pb-3 text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-ink/50">
+      <footer className="mx-auto mt-6 w-full max-w-7xl pb-2 text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-ink/50">
         Clashguard 2026 All Rights Reserved
       </footer>
 

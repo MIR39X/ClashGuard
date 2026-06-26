@@ -112,7 +112,7 @@ const AlternativesPage = ({ allClasses, selectedCourses, setSelectedCourses }) =
     setAppliedMsg(`Applied alternative: ${option.title}`);
   };
 
-  if (selectedCourses.length < 1) return <Navigate to="/select" replace state={{ selectionRequired: true }} />;
+  if (selectedCourses.length < 1) return <Navigate to="/" replace state={{ selectionRequired: true }} />;
 
   return (
     <Shell>

@@ -15,7 +15,7 @@ const ClashReportPage = ({ allClasses, selectedCourses }) => {
   );
   const clashes = useMemo(() => buildClashes(selectedEntries), [selectedEntries]);
 
-  if (selectedCourses.length < 1) return <Navigate to="/select" replace state={{ selectionRequired: true }} />;
+  if (selectedCourses.length < 1) return <Navigate to="/" replace state={{ selectionRequired: true }} />;
 
   return (
     <Shell>
