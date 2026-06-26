@@ -59,13 +59,15 @@ const SummerPage = () => {
 
         {/* Left — hero */}
         <section className="animate-rise flex flex-col rounded-2xl border border-signal/35 bg-white/65 p-5 backdrop-blur-sm lg:w-[40%] lg:p-7 [animation-delay:60ms]">
-          <p className="text-[9px] uppercase tracking-[0.28em] text-signal/60 mb-1">[00]_No Classes Detected</p>
-          <h1 className="font-display text-signal leading-[0.85] tracking-wide text-[clamp(4.5rem,13vw,7rem)] lg:text-[clamp(4rem,6.5vw,7rem)]">
-            SUMMER
-            <br />
-            BREAK
-          </h1>
-          <div className="mt-auto pt-5 border-t border-signal/15">
+          <p className="shrink-0 text-[9px] uppercase tracking-[0.28em] text-signal/60">[00]_No Classes Detected</p>
+          <div className="flex flex-1 items-center">
+            <h1 className="font-display text-signal leading-[0.85] tracking-wide text-[clamp(4.5rem,13vw,7rem)] lg:text-[clamp(4rem,6.5vw,7rem)]">
+              SUMMER
+              <br />
+              BREAK
+            </h1>
+          </div>
+          <div className="shrink-0 border-t border-signal/15 pt-4">
             <p className="text-xs uppercase tracking-[0.18em] text-ink/55 leading-relaxed">
               Semester over — ClashGuard has nothing to guard against. Go be a person.
             </p>
@@ -94,16 +96,16 @@ const SummerPage = () => {
             {VIBES.map((v, i) => (
               <article
                 key={v.tag}
-                className="animate-rise rounded-2xl border border-ink/10 bg-white/80 p-4 backdrop-blur-sm sm:p-5"
+                className="animate-rise flex flex-col justify-center gap-2 rounded-2xl border border-ink/10 bg-white/80 p-4 backdrop-blur-sm sm:p-5"
                 style={{ animationDelay: `${200 + i * 55}ms` }}
               >
-                <span className="inline-block rounded-full border border-signal/30 bg-ash px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-signal">
+                <span className="self-start rounded-full border border-signal/30 bg-ash px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-signal">
                   {v.tag}
                 </span>
-                <p className="font-display mt-2 text-signal tracking-wide text-[clamp(1.1rem,2.2vw,1.6rem)]">
+                <p className="font-display text-signal tracking-wide text-[clamp(1.1rem,2.2vw,1.6rem)] leading-tight">
                   {v.headline}
                 </p>
-                <p className="mt-1 text-xs leading-relaxed text-ink/55">{v.line}</p>
+                <p className="text-xs leading-relaxed text-ink/55">{v.line}</p>
               </article>
             ))}
           </div>
