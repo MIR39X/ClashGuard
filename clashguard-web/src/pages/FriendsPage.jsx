@@ -195,7 +195,7 @@ const FriendsPage = ({ allClasses, selectedCourses, friends, setFriends }) => {
     if (selectedFriendId === id) setSelectedFriendId('');
   };
 
-  if (selectedCourses.length < 1) return <Navigate to="/" replace state={{ selectionRequired: true }} />;
+  if (selectedCourses.length < 1) return <Navigate to="/select" replace state={{ selectionRequired: true }} />;
 
   return (
     <Shell>
@@ -211,7 +211,7 @@ const FriendsPage = ({ allClasses, selectedCourses, friends, setFriends }) => {
               <button onClick={() => navigate('/alternatives')} className={BTN_BASE}>Alternatives</button>
               <button onClick={() => navigate('/grades')} className={BTN_BASE}>Grades</button>
               <button onClick={() => navigate('/friends')} className={`${BTN_BASE} bg-signal text-white`}>Friends</button>
-              <button onClick={() => navigate('/')} className={BTN_BASE}>Back To Selection</button>
+              <button onClick={() => navigate('/select')} className={BTN_BASE}>Back To Selection</button>
             </div>
           </div>
 

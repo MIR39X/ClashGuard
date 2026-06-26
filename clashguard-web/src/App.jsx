@@ -171,7 +171,7 @@ const SelectPage = ({ sectionFilter, setSectionFilter, allClasses, setAllClasses
   useEffect(() => {
     if (!location.state?.selectionRequired) return;
     setShowSelectionRequiredModal(true);
-    navigate('/', { replace: true, state: null });
+    navigate('/select', { replace: true, state: null });
   }, [location.state, navigate]);
 
   const toggleCourse = (course) => {
@@ -562,8 +562,9 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<SummerPage />} />
         <Route
-          path="/"
+          path="/select"
           element={
             <SelectPage
               sectionFilter={sectionFilter}
@@ -623,7 +624,6 @@ function App() {
           }
         />
         <Route path="/settings" element={<SettingsPage gradeRanges={gradeRanges} setGradeRanges={setGradeRanges} />} />
-        <Route path="/summer" element={<SummerPage />} />
       </Routes>
     </BrowserRouter>
   );

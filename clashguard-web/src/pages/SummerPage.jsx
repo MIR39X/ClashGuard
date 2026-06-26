@@ -1,107 +1,159 @@
-import { useNavigate } from 'react-router-dom';
-import { Shell } from '../components/Shell';
-import { BTN_BASE } from '../constants';
+import { useState } from 'react';
+import {
+  ABOUT_ME,
+  APK_DOWNLOAD_URL,
+  BTN_BASE,
+  HEADER_MOBILE_LOGO,
+  HEADER_WEBSITE_LOGO,
+} from '../constants';
 
 const VIBES = [
-  { tag: 'Beach', headline: 'Hit The Waves', body: 'Trade your lecture hall for shoreline. You have absolutely nowhere to be.' },
-  { tag: 'Sleep', headline: 'Sleep In', body: 'No 8 AM classes. No alarms. Just blissful, consequence-free unconsciousness.' },
-  { tag: 'Games', headline: 'Conquer The Backlog', body: 'That pile of unfinished games has been judging you all semester. Time to settle it.' },
-  { tag: 'Food', headline: 'Eat Junk Food', body: 'Canteen is closed and nobody is keeping score. Feast accordingly.' },
-  { tag: 'Skills', headline: 'Learn Something Useless', body: 'Pick up a hobby with zero career value. Juggling, origami, whatever — it doesn\'t matter.' },
-  { tag: 'Nights', headline: 'Stay Up Late', body: 'No deadlines, no morning labs. The night is yours with zero consequences.' },
+  { tag: 'Rest', line: 'Sleep past noon. Set zero alarms.' },
+  { tag: 'Beach', line: 'Trade lectures for shoreline.' },
+  { tag: 'Games', line: 'The backlog won\'t clear itself.' },
+  { tag: 'Nights', line: 'No morning labs. The night is yours.' },
 ];
 
 const SummerPage = () => {
-  const navigate = useNavigate();
+  const [showAbout, setShowAbout] = useState(false);
+  const isNativeApp =
+    typeof window !== 'undefined' &&
+    !!window.Capacitor &&
+    typeof window.Capacitor.isNativePlatform === 'function' &&
+    window.Capacitor.isNativePlatform();
 
   return (
-    <Shell>
-      <main className="mx-auto w-full max-w-7xl pt-6 md:pt-10">
+    <div className="h-screen overflow-hidden flex flex-col px-3 pt-4 sm:px-5 sm:pt-6 md:px-8 lg:px-10"
+      style={{ background: 'radial-gradient(circle at 12% 8%, rgba(74,124,214,0.2) 0%, transparent 38%), radial-gradient(circle at 86% 84%, rgba(30,103,135,0.16) 0%, transparent 36%), linear-gradient(180deg,#d9e3f3 0%,#d3deef 100%)' }}
+    >
+      {/* Decorative blobs */}
+      <div className="pointer-events-none fixed -right-16 top-24 h-36 w-36 rounded-full bg-signal/20 blur-2xl animate-pulse-slow" />
+      <div className="pointer-events-none fixed -left-20 bottom-12 h-44 w-44 rounded-full bg-blue-400/25 blur-2xl animate-pulse-slow" />
 
-        <section className="animate-rise rounded-2xl border border-signal/35 bg-white/65 p-6 backdrop-blur-sm md:p-10 [animation-delay:60ms]">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h1 className="font-display text-signal text-[clamp(3rem,10vw,8rem)] leading-[0.85] tracking-wide">
-                SUMMER
-                <br />
-                BREAK
-              </h1>
-              <p className="mt-1 text-xs uppercase tracking-[0.28em] text-signal/60">[00]_No Classes Detected</p>
-            </div>
-            <button onClick={() => navigate('/')} className={`${BTN_BASE} shrink-0`}>
-              Back To Home
-            </button>
+      {/* Header */}
+      <header className="relative mx-auto flex w-full max-w-7xl shrink-0 items-center justify-between gap-2 border-t-4 border-signal pt-4 sm:gap-3 sm:pt-5">
+        <button onClick={() => setShowAbout(true)} className={`${BTN_BASE}`}>
+          About Me
+        </button>
+
+        <img
+          src={HEADER_MOBILE_LOGO}
+          alt="ClashGuard"
+          className="theme-logo pointer-events-none absolute left-1/2 top-1/2 h-28 w-28 -translate-x-1/2 -translate-y-1/2 object-contain sm:hidden"
+        />
+        <div className="pointer-events-none absolute left-1/2 top-[calc(50%+10px)] hidden -translate-x-1/2 -translate-y-1/2 sm:block">
+          <img src={HEADER_WEBSITE_LOGO} alt="ClashGuard" className="theme-logo h-40 w-auto object-contain" />
+        </div>
+
+        {!isNativeApp && (
+          <a
+            href={APK_DOWNLOAD_URL}
+            target="_blank"
+            rel="noreferrer"
+            className={BTN_BASE}
+          >
+            <span className="sm:hidden">APK</span>
+            <span className="hidden sm:inline">Download APK</span>
+          </a>
+        )}
+      </header>
+
+      {/* Main content — fills remaining height */}
+      <main className="mx-auto mt-4 flex w-full max-w-7xl flex-1 min-h-0 flex-col gap-3 pb-4 sm:mt-5 sm:pb-5 lg:flex-row lg:gap-4">
+
+        {/* Left — hero */}
+        <section className="animate-rise flex flex-col justify-between rounded-2xl border border-signal/35 bg-white/65 p-5 backdrop-blur-sm lg:w-[42%] lg:p-8 [animation-delay:60ms]">
+          <div>
+            <p className="text-[9px] uppercase tracking-[0.28em] text-signal/60">[00]_No Classes Detected</p>
+            <h1 className="font-display text-signal mt-1 text-[clamp(4rem,12vw,9rem)] leading-[0.85] tracking-wide sm:text-[clamp(5rem,14vw,10rem)] lg:text-[clamp(4rem,7vw,8rem)]">
+              SUMMER
+              <br />
+              BREAK
+            </h1>
           </div>
-
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 md:mt-8 lg:grid-cols-3">
-            <div className="col-span-full rounded-xl border border-signal/30 bg-signal/8 p-5 md:p-6">
-              <p className="text-[10px] uppercase tracking-[0.28em] text-signal/70">Status Report</p>
-              <p className="mt-2 font-display text-[clamp(1.6rem,4vw,3rem)] leading-tight tracking-wide text-signal">
-                Zero Lectures. Zero Assignments. Infinite Potential.
-              </p>
-              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink/75 md:text-base">
-                Semester is over. The timetable is empty. ClashGuard has nothing to guard against — and for once,
-                that is a wonderful thing. Go be a person.
-              </p>
-            </div>
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-ink/55 sm:text-sm">
+              Semester over &mdash; ClashGuard has nothing to guard against.
+              <br className="hidden sm:block" /> Go be a person.
+            </p>
+            <p className="mt-3 text-[10px] uppercase tracking-[0.22em] text-signal/50">
+              See you next semester.
+            </p>
           </div>
         </section>
 
-        <section className="animate-rise mt-4 rounded-2xl border border-signal/35 bg-white/65 p-6 backdrop-blur-sm md:p-8 [animation-delay:160ms]">
-          <p className="text-[10px] uppercase tracking-[0.28em] text-signal/70">Approved Summer Activities</p>
-          <h2 className="mt-1 font-display text-[clamp(1.8rem,4vw,3.2rem)] leading-tight tracking-wide text-signal">
-            Your Official Break Agenda
-          </h2>
+        {/* Right — status + vibes */}
+        <section className="animate-rise flex min-h-0 flex-1 flex-col gap-3 [animation-delay:140ms]">
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Status card */}
+          <div className="rounded-2xl border border-signal/35 bg-white/65 p-5 backdrop-blur-sm sm:p-6">
+            <p className="text-[9px] uppercase tracking-[0.28em] text-signal/60">Status Report</p>
+            <p className="font-display mt-1 text-signal text-[clamp(1.3rem,3.5vw,2.6rem)] leading-tight tracking-wide">
+              Zero Lectures. Zero Assignments. Infinite Potential.
+            </p>
+            <p className="mt-2 text-xs leading-relaxed text-ink/65 sm:text-sm">
+              The timetable is empty. ClashGuard has nothing to guard against — and for once, that is a wonderful thing.
+            </p>
+          </div>
+
+          {/* Vibe cards grid */}
+          <div className="grid flex-1 min-h-0 grid-cols-2 gap-3">
             {VIBES.map((v, i) => (
               <article
                 key={v.tag}
-                className="animate-rise rounded-xl border border-ink/12 bg-white p-4"
-                style={{ animationDelay: `${200 + i * 60}ms` }}
+                className="animate-rise flex flex-col justify-between rounded-2xl border border-ink/12 bg-white/80 p-4 backdrop-blur-sm sm:p-5"
+                style={{ animationDelay: `${200 + i * 55}ms` }}
               >
-                <span className="inline-block rounded-full border border-signal/30 bg-ash px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-signal">
+                <span className="inline-block self-start rounded-full border border-signal/30 bg-ash px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-signal">
                   {v.tag}
                 </span>
-                <p className="mt-2 font-display text-xl tracking-wide text-ink">{v.headline}</p>
-                <p className="mt-1 text-sm leading-relaxed text-ink/65">{v.body}</p>
+                <p className="mt-2 text-xs leading-relaxed text-ink/65 sm:text-sm">{v.line}</p>
               </article>
             ))}
           </div>
+
         </section>
-
-        <section className="animate-rise mt-4 grid gap-4 sm:grid-cols-2 [animation-delay:320ms]">
-          <div className="rounded-2xl border border-signal/35 bg-white/65 p-6 backdrop-blur-sm md:p-8">
-            <p className="text-[10px] uppercase tracking-[0.28em] text-signal/70">Friendly Reminder</p>
-            <h2 className="mt-2 font-display text-[clamp(1.6rem,3.5vw,2.8rem)] leading-tight tracking-wide text-signal">
-              You Survived The Semester
-            </h2>
-            <p className="mt-3 text-sm leading-relaxed text-ink/70 md:text-base">
-              Clashes resolved. Grades calculated. Timetable conquered. Whatever the semester threw at you — you
-              made it to the other side. That deserves actual rest.
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-signal/35 bg-white/65 p-6 backdrop-blur-sm md:p-8">
-            <p className="text-[10px] uppercase tracking-[0.28em] text-signal/70">When It&apos;s Time</p>
-            <h2 className="mt-2 font-display text-[clamp(1.6rem,3.5vw,2.8rem)] leading-tight tracking-wide text-signal">
-              We&apos;ll Be Here
-            </h2>
-            <p className="mt-3 text-sm leading-relaxed text-ink/70 md:text-base">
-              New semester, new courses, new clashes waiting to be found. When registration opens up again,
-              ClashGuard is ready. Until then — close the tab.
-            </p>
-            <button
-              onClick={() => navigate('/')}
-              className="mt-5 rounded-xl border border-signal/40 bg-signal px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-signal/90"
-            >
-              Go To App
-            </button>
-          </div>
-        </section>
-
       </main>
-    </Shell>
+
+      {/* Footer */}
+      <footer className="mx-auto w-full max-w-7xl shrink-0 pb-3 text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-ink/50">
+        Clashguard 2026 All Rights Reserved
+      </footer>
+
+      {/* About modal */}
+      {showAbout && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-3 backdrop-blur-sm sm:p-4"
+          onClick={() => setShowAbout(false)}
+        >
+          <div
+            className="w-full max-w-xl rounded-2xl border border-signal/35 bg-white/95 p-5 shadow-[0_18px_40px_rgba(20,20,20,0.25)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.24em] text-signal/80">About</p>
+                <h3 className="font-display text-4xl leading-[0.9] tracking-wide text-signal sm:text-5xl">
+                  {ABOUT_ME.name}
+                </h3>
+              </div>
+              <button onClick={() => setShowAbout(false)} className={BTN_BASE}>Close</button>
+            </div>
+            <p className="mt-4 text-sm uppercase tracking-[0.08em] text-ink/80">{ABOUT_ME.bio}</p>
+            <div className="mt-4 grid gap-2">
+              <a href={ABOUT_ME.linkedin} target="_blank" rel="noreferrer"
+                className="rounded-lg border border-signal/30 bg-white px-3 py-2 text-sm font-semibold text-signal hover:bg-signal/10">
+                LinkedIn
+              </a>
+              <a href={ABOUT_ME.github} target="_blank" rel="noreferrer"
+                className="rounded-lg border border-signal/30 bg-white px-3 py-2 text-sm font-semibold text-signal hover:bg-signal/10">
+                GitHub
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

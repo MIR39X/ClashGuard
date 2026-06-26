@@ -112,7 +112,7 @@ const AlternativesPage = ({ allClasses, selectedCourses, setSelectedCourses }) =
     setAppliedMsg(`Applied alternative: ${option.title}`);
   };
 
-  if (selectedCourses.length < 1) return <Navigate to="/" replace state={{ selectionRequired: true }} />;
+  if (selectedCourses.length < 1) return <Navigate to="/select" replace state={{ selectionRequired: true }} />;
 
   return (
     <Shell>
@@ -138,7 +138,7 @@ const AlternativesPage = ({ allClasses, selectedCourses, setSelectedCourses }) =
               <button onClick={() => navigate('/friends')} className={BTN_BASE}>
                 Friends
               </button>
-              <button onClick={() => navigate('/')} className={BTN_BASE}>
+              <button onClick={() => navigate('/select')} className={BTN_BASE}>
                 Back To Selection
               </button>
             </div>

@@ -15,7 +15,7 @@ const ClashReportPage = ({ allClasses, selectedCourses }) => {
   );
   const clashes = useMemo(() => buildClashes(selectedEntries), [selectedEntries]);
 
-  if (selectedCourses.length < 1) return <Navigate to="/" replace state={{ selectionRequired: true }} />;
+  if (selectedCourses.length < 1) return <Navigate to="/select" replace state={{ selectionRequired: true }} />;
 
   return (
     <Shell>
@@ -41,7 +41,7 @@ const ClashReportPage = ({ allClasses, selectedCourses }) => {
               <button onClick={() => navigate('/friends')} className={BTN_BASE}>
                 Friends
               </button>
-              <button onClick={() => navigate('/')} className={BTN_BASE}>
+              <button onClick={() => navigate('/select')} className={BTN_BASE}>
                 Back To Selection
               </button>
             </div>

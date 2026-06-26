@@ -134,7 +134,7 @@ export const GradeCoursePage = ({ selectedCourses, gradesData, setGradesData, gr
     upsertCourseGrade((current) => ({ ...current, selectedGrade: value }));
   };
 
-  if (selectedCourses.length < 1) return <Navigate to="/" replace state={{ selectionRequired: true }} />;
+  if (selectedCourses.length < 1) return <Navigate to="/select" replace state={{ selectionRequired: true }} />;
   if (!course) return <Navigate to="/grades" replace />;
 
   const courseGrade =
@@ -505,7 +505,7 @@ const GradesPage = ({ selectedCourses, gradesData, gradeRanges, courseCredits, s
     return credits > 0 ? weightedPoints / credits : 0;
   }, [courseCredits, gradesData, gradeRanges, selectedCourses]);
 
-  if (selectedCourses.length < 1) return <Navigate to="/" replace state={{ selectionRequired: true }} />;
+  if (selectedCourses.length < 1) return <Navigate to="/select" replace state={{ selectionRequired: true }} />;
 
   return (
     <Shell>
@@ -531,7 +531,7 @@ const GradesPage = ({ selectedCourses, gradesData, gradeRanges, courseCredits, s
               <button onClick={() => navigate('/friends')} className={BTN_BASE}>
                 Friends
               </button>
-              <button onClick={() => navigate('/')} className={BTN_BASE}>
+              <button onClick={() => navigate('/select')} className={BTN_BASE}>
                 Back To Selection
               </button>
             </div>

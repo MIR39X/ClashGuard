@@ -121,9 +121,6 @@ export const Shell = ({ children }) => {
           <button onClick={() => setShowAbout(true)} className={`${BTN_BASE} hidden sm:inline-flex`}>
             About Me
           </button>
-          <button onClick={() => navigate('/summer')} className={`${BTN_BASE} hidden sm:inline-flex`}>
-            Summer
-          </button>
         </div>
         <img
           src={HEADER_MOBILE_LOGO}
@@ -148,19 +145,13 @@ export const Shell = ({ children }) => {
         </div>
       </header>
       {children}
-      {location.pathname === '/' && (
-        <div className="mx-auto mt-2 w-full max-w-7xl flex items-center justify-center gap-4 sm:hidden">
+      {location.pathname === '/select' && (
+        <div className="mx-auto mt-2 w-full max-w-7xl text-center sm:hidden">
           <button
             onClick={() => setShowAbout(true)}
             className="text-[11px] font-semibold uppercase tracking-[0.16em] text-signal/80 underline underline-offset-4"
           >
             About Developer
-          </button>
-          <button
-            onClick={() => navigate('/summer')}
-            className="text-[11px] font-semibold uppercase tracking-[0.16em] text-signal/80 underline underline-offset-4"
-          >
-            Summer Break
           </button>
         </div>
       )}
