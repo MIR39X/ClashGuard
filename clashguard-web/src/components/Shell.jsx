@@ -131,9 +131,12 @@ export const Shell = ({ children }) => {
           <img src={HEADER_WEBSITE_LOGO} alt="ClashGuard" className="theme-logo h-40 w-auto max-w-[1400px] object-contain" />
         </div>
         <div className="ml-auto flex min-w-0 items-center gap-2">
-          <p className="hidden truncate text-[10px] tracking-[0.22em] text-signal lg:block lg:text-xs lg:tracking-[0.3em]">
-            SPRING 2026
-          </p>
+          <button
+            onClick={() => navigate('/summer')}
+            className="hidden truncate text-[10px] tracking-[0.22em] text-signal transition hover:text-signal/70 lg:block lg:text-xs lg:tracking-[0.3em]"
+          >
+            SUMMER 2026
+          </button>
           {!isNativeApp && (
             <a
               href={APK_DOWNLOAD_URL}

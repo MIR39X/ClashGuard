@@ -18,6 +18,7 @@ import ClashReportPage from './pages/ClashReportPage';
 import AlternativesPage from './pages/AlternativesPage';
 import GradesPage, { GradeCoursePage, SettingsPage } from './pages/GradesPage';
 import FriendsPage from './pages/FriendsPage';
+import SummerPage from './pages/SummerPage';
 import { buildDefaultGradeComponents, getEffectiveCreditHours, hasOnlyBlankComponents } from './utils/gradeUtils';
 
 const CLASSES_FETCHED_AT_KEY = STORAGE_KEYS.CLASSES_FETCHED_AT;
@@ -622,6 +623,7 @@ function App() {
           }
         />
         <Route path="/settings" element={<SettingsPage gradeRanges={gradeRanges} setGradeRanges={setGradeRanges} />} />
+        <Route path="/summer" element={<SummerPage />} />
       </Routes>
     </BrowserRouter>
   );
