@@ -6,11 +6,13 @@ describe('ClashGuard archive landing page', () => {
   test('shows the archive message and project lifetime', () => {
     render(<App />);
 
-    expect(screen.getByRole('heading', { name: /it guarded the clashes/i })).toBeInTheDocument();
-    expect(screen.getByText(/FAST's new timetable now in place/i)).toBeInTheDocument();
-    expect(screen.getByText('February')).toBeInTheDocument();
-    expect(screen.getByText('June')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /thank you/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'CLASHGUARD' })).toBeInTheDocument();
+    expect(screen.getByText(/FAST now provides its new timetable/i)).toBeInTheDocument();
+    expect(screen.getByText('FEBRUARY 2026')).toBeInTheDocument();
+    expect(screen.getByText('JUNE 2026')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /thank you for using clashguard/i })).toBeInTheDocument();
+    expect(screen.queryByText(/it guarded the clashes/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/archived with gratitude/i)).not.toBeInTheDocument();
   });
 
   test('only exposes allowlisted repository links', () => {
