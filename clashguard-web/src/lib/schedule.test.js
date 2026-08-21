@@ -1,4 +1,5 @@
 import { buildClashes, getCourseKey, selectedEntriesFromCourses } from './schedule';
+import { describe, expect, test } from 'vitest';
 
 describe('schedule helpers', () => {
   test('getCourseKey normalizes course and section', () => {

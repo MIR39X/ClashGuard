@@ -1,72 +1,41 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Bebas+Neue&display=swap');
-@import "tailwindcss";
-
-@theme {
-  --font-display: "Bebas Neue", sans-serif;
-  --font-ui: "Space Grotesk", sans-serif;
-  --color-ash: #e7edf7;
-  --color-ink: #1e2a3b;
-  --color-signal: #4256b8;
+:root {
+  --paper: #f5f2e9;
+  --ink: #13251f;
+  --muted: #5f6c67;
+  --muted-soft: #85908b;
+  --green: #26794d;
+  --mint: #b4ffc5;
+  --line: rgba(19, 37, 31, 0.16);
+  --line-strong: rgba(19, 37, 31, 0.32);
+  --font-display: "Arial Narrow", "Aptos Display", "Helvetica Neue", sans-serif;
+  --font-body: Inter, Aptos, "Segoe UI", sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
-html,
-body,
-#root {
-  min-height: 100%;
+html {
+  background: var(--paper);
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
-  font-family: var(--font-ui);
-  background:
-    radial-gradient(circle at 12% 8%, rgba(74, 124, 214, 0.2) 0%, transparent 38%),
-    radial-gradient(circle at 86% 84%, rgba(30, 103, 135, 0.16) 0%, transparent 36%),
-    linear-gradient(180deg, #d9e3f3 0%, #d3deef 100%);
-  color: var(--color-ink);
+  min-width: 320px;
 }
 
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(22px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+button, a { -webkit-tap-highlight-color: transparent; }
+
+a:focus-visible {
+  outline: 3px solid var(--green);
+  outline-offset: 4px;
 }
 
-@keyframes pulse-slow {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.08);
-  }
-}
-
-.animate-rise {
-  animation: rise 650ms ease forwards;
-}
-
-.animate-pulse-slow {
-  animation: pulse-slow 4.5s ease-in-out infinite;
-}
-
-.themed-scroll {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.themed-scroll::-webkit-scrollbar {
-  display: none;
-}
-
-.theme-logo {
-  filter: hue-rotate(168deg) saturate(0.72) brightness(0.9);
+::selection {
+  background: var(--ink);
+  color: var(--mint);
 }

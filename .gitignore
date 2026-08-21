@@ -28,7 +28,7 @@ Thumbs.db
 
 # Test artifacts
 **/playwright-report/
-**/test-results/
+**/test-results*/
 
 # External reference repo
 Fast-Timetable/

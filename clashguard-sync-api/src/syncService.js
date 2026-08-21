@@ -13,9 +13,18 @@ const state = {
 };
 
 let syncTimer = null;
+const FETCH_TIMEOUT_MS = 15_000;
+const MAX_SHEETS_PER_SYNC = 50;
+const ALLOWED_SHEET_ORIGINS = new Set(['https://docs.google.com']);
+
+const fetchWithLimits = (url) =>
+  fetch(url, {
+    redirect: 'error',
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
 
 const fetchText = async (url) => {
-  const response = await fetch(url);
+  const response = await fetchWithLimits(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch ${url} (${response.status})`);
   }
@@ -23,11 +32,26 @@ const fetchText = async (url) => {
 };
 
 const fetchJson = async (url) => {
-  const response = await fetch(url);
+  const response = await fetchWithLimits(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch ${url} (${response.status})`);
   }
   return response.json();
+};
+
+export const toAllowedSheetUrl = (baseUrl, gid) => {
+  const normalizedGid = String(gid ?? '').trim();
+  if (!/^\d{1,20}$/.test(normalizedGid)) {
+    throw new Error('Invalid timetable sheet identifier');
+  }
+
+  const url = new URL(baseUrl);
+  if (!ALLOWED_SHEET_ORIGINS.has(url.origin) || !url.pathname.startsWith('/spreadsheets/')) {
+    throw new Error('Timetable sheet URL is not allowlisted');
+  }
+
+  url.searchParams.set('gid', normalizedGid);
+  return url.toString();
 };
 
 export const runSync = async () => {
@@ -40,13 +64,13 @@ export const runSync = async () => {
     const baseUrl = source?.karachi?.url;
     const codes = source?.karachi?.codes || [];
 
-    if (!baseUrl || !Array.isArray(codes) || codes.length === 0) {
+    if (!baseUrl || !Array.isArray(codes) || codes.length === 0 || codes.length > MAX_SHEETS_PER_SYNC) {
       throw new Error('Invalid source /data payload');
     }
 
     const results = await Promise.all(
       codes.map(async (code) => {
-        const text = await fetchText(`${baseUrl}${code.gid}`);
+        const text = await fetchText(toAllowedSheetUrl(baseUrl, code.gid));
         return {
           sheet: code.name,
           classes: parseSheetClasses(code.name, text),
@@ -80,4 +104,3 @@ export const stopAutoSync = () => {
 };
 
 export const getSyncState = () => ({ ...state, classes: [...state.classes] });
-
